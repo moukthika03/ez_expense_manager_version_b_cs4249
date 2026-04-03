@@ -203,7 +203,6 @@ class _WebHomeLayout extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  // ── Greeting ──────────────────────────────────────────
                   const Text(
                     'Hey there!',
                     style: TextStyle(
