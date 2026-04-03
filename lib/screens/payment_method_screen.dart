@@ -39,55 +39,34 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  const Text(
-                    'Payment Method',
-                    style: TextStyle(
-                      fontSize: 26,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
-                    ),
-                  ),
+                  const Text('Payment Method',
+                      style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: Colors.black87)),
                   const SizedBox(height: 16),
                   const StepProgressBar(value: 0.88),
                   const SizedBox(height: 40),
 
-                  // Electronic transfer
                   OptionButton(
                     label: 'Electronic transfer',
                     isSelected: _selectedMethod == 'electronic',
-                    onTap: () =>
-                        setState(() => _selectedMethod = 'electronic'),
+                    onTap: () => setState(() => _selectedMethod = 'electronic'),
                   ),
                   if (_selectedMethod == 'electronic') ...[
                     Container(
                       width: double.infinity,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 14),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: const BorderRadius.only(
-                          bottomLeft: Radius.circular(14),
-                          bottomRight: Radius.circular(14),
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.07),
-                            blurRadius: 8,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
+                            bottomLeft: Radius.circular(14), bottomRight: Radius.circular(14)),
+                        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.07), blurRadius: 8, offset: const Offset(0, 4))],
                       ),
                       child: Wrap(
-                        spacing: 10,
-                        runSpacing: 10,
+                        spacing: 10, runSpacing: 10,
                         children: ['DBS PayLah', 'GrabPay', 'dash', 'fave', 'Singtel Dash']
-                            .map(
-                              (name) => Chip(
-                            label: Text(name,
-                                style: const TextStyle(fontSize: 12)),
-                            backgroundColor: Colors.grey.shade100,
-                          ),
-                        )
+                            .map((name) => Chip(
+                          label: Text(name, style: const TextStyle(fontSize: 12)),
+                          backgroundColor: Colors.grey.shade100,
+                        ))
                             .toList(),
                       ),
                     ),
@@ -95,7 +74,6 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
 
                   const SizedBox(height: 16),
 
-                  // Credit/debit card
                   OptionButton(
                     label: 'Credit/debit card',
                     isSelected: _selectedMethod == 'card',
@@ -108,24 +86,15 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: const BorderRadius.only(
-                          bottomLeft: Radius.circular(14),
-                          bottomRight: Radius.circular(14),
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.07),
-                            blurRadius: 8,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
+                            bottomLeft: Radius.circular(14), bottomRight: Radius.circular(14)),
+                        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.07), blurRadius: 8, offset: const Offset(0, 4))],
                       ),
                       child: Container(
                         height: 90,
                         decoration: BoxDecoration(
                           gradient: const LinearGradient(
                             colors: [Color(0xFF1A73E8), Color(0xFF9C27B0)],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
+                            begin: Alignment.topLeft, end: Alignment.bottomRight,
                           ),
                           borderRadius: BorderRadius.circular(12),
                         ),
@@ -134,24 +103,13 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: const [
-                            Text(
-                              '1234 5678 9012 3456',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 15,
-                                letterSpacing: 2,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
+                            Text('1234 5678 9012 3456',
+                                style: TextStyle(color: Colors.white, fontSize: 15, letterSpacing: 2, fontWeight: FontWeight.w600)),
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Text('John Doe',
-                                    style: TextStyle(
-                                        color: Colors.white70, fontSize: 12)),
-                                Text('12/27',
-                                    style: TextStyle(
-                                        color: Colors.white70, fontSize: 12)),
+                                Text('John Doe', style: TextStyle(color: Colors.white70, fontSize: 12)),
+                                Text('12/27',    style: TextStyle(color: Colors.white70, fontSize: 12)),
                               ],
                             ),
                           ],
@@ -162,7 +120,6 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
 
                   const SizedBox(height: 16),
 
-                  // Other
                   OptionButton(
                     label: 'Other',
                     isSelected: _selectedMethod == 'other',
@@ -173,8 +130,8 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      BackNavButton(onTap: () async {
-                        await AnalyticsService.logTransition(
+                      BackNavButton(onTap: () {
+                        AnalyticsService.logTransition(
                           fromScreen: AnalyticsService.screenPaymentMethod,
                           destination: AnalyticsService.screenTransactionDetails,
                           navButtonId: 'back',
@@ -184,12 +141,15 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                       if (_selectedMethod != null)
                         ElevatedButton(
                           onPressed: () async {
-                            await AnalyticsService.logTransition(
+                            // Analytics fires instantly, no await
+                            AnalyticsService.logTransition(
                               fromScreen: AnalyticsService.screenPaymentMethod,
                               destination: AnalyticsService.screenExpenseAdded,
                               navButtonId: 'confirm',
                             );
-                            await AnalyticsService.logCompleted();
+                            AnalyticsService.logCompleted();
+
+                            // Expense saving still awaited (local Hive write — fast)
                             await ExpenseService.addExpense(
                               ExpenseModel(
                                 title: widget.payee,
@@ -202,27 +162,19 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                             if (context.mounted) {
                               Navigator.push(
                                 context,
-                                MaterialPageRoute(
-                                  builder: (_) => const ExpenseAddedScreen(),
-                                ),
+                                MaterialPageRoute(builder: (_) => const ExpenseAddedScreen()),
                               );
                             }
                           },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFF1A73E8),
                             foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 28, vertical: 16),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14),
-                            ),
+                            padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 16),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                             elevation: 0,
                           ),
-                          child: const Text(
-                            'Confirm Log',
-                            style: TextStyle(
-                                fontSize: 16, fontWeight: FontWeight.w600),
-                          ),
+                          child: const Text('Confirm Log',
+                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
                         )
                       else
                         ForwardNavButton(onTap: null),

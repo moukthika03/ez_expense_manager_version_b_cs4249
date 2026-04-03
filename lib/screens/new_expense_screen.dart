@@ -28,11 +28,7 @@ class _NewExpenseScreenState extends State<NewExpenseScreen> {
                 children: [
                   const Text(
                     'New Expense',
-                    style: TextStyle(
-                      fontSize: 26,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
-                    ),
+                    style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: Colors.black87),
                   ),
                   const SizedBox(height: 16),
                   const StepProgressBar(value: 0.15),
@@ -60,25 +56,14 @@ class _NewExpenseScreenState extends State<NewExpenseScreen> {
                             bottomRight: Radius.circular(14),
                           ),
                           boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.08),
-                              blurRadius: 8,
-                              offset: const Offset(0, 4),
-                            ),
+                            BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 8, offset: const Offset(0, 4)),
                           ],
                         ),
                         child: Container(
                           height: 100,
                           width: 100,
-                          decoration: BoxDecoration(
-                            color: Colors.grey.shade200,
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: const Icon(
-                            Icons.receipt_long,
-                            color: Colors.grey,
-                            size: 40,
-                          ),
+                          decoration: BoxDecoration(color: Colors.grey.shade200, borderRadius: BorderRadius.circular(10)),
+                          child: const Icon(Icons.receipt_long, color: Colors.grey, size: 40),
                         ),
                       ),
                     ],
@@ -88,21 +73,19 @@ class _NewExpenseScreenState extends State<NewExpenseScreen> {
                     alignment: Alignment.centerRight,
                     child: ForwardNavButton(
                       onTap: _selected != null
-                          ? () async {
-                              await AnalyticsService.logTransition(
-                                fromScreen: AnalyticsService.screenNewExpense,
-                                destination: AnalyticsService.screenChooseCategory,
-                                navButtonId: 'forward',
-                              );
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => ChooseCategoryScreen(
-                                    expenseType: _selected!,
-                                  ),
-                                ),
-                              );
-                            }
+                          ? () {
+                        AnalyticsService.logTransition(
+                          fromScreen: AnalyticsService.screenNewExpense,
+                          destination: AnalyticsService.screenChooseCategory,
+                          navButtonId: 'forward',
+                        );
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => ChooseCategoryScreen(expenseType: _selected!),
+                          ),
+                        );
+                      }
                           : null,
                     ),
                   ),

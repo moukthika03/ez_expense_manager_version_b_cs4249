@@ -16,18 +16,9 @@ class ChooseCategoryScreen extends StatefulWidget {
 class _ChooseCategoryScreenState extends State<ChooseCategoryScreen> {
   String? _selectedCategory;
 
-  // Updated categories list based on App A and App B User Tasks
   final List<String> _taskCategories = [
-    'Transport',
-    'Food',
-    'Groceries',
-    'Appliances',
-    'Healthcare',
-    'Utilities',
-    'Furniture',
-    'Shopping',
-    'Travel',
-    'Entertainment',
+    'Transport', 'Food', 'Groceries', 'Appliances', 'Healthcare',
+    'Utilities', 'Furniture', 'Shopping', 'Travel', 'Entertainment',
   ];
 
   List<Map<String, String>> get _categories {
@@ -37,12 +28,8 @@ class _ChooseCategoryScreenState extends State<ChooseCategoryScreen> {
           ? '-\$${total.toStringAsFixed(2)} this month'
           : 'No expenses this month';
     }
-
     return _taskCategories.map((category) {
-      return {
-        'title': category,
-        'subtitle': monthTotal(category),
-      };
+      return {'title': category, 'subtitle': monthTotal(category)};
     }).toList();
   }
 
@@ -61,24 +48,16 @@ class _ChooseCategoryScreenState extends State<ChooseCategoryScreen> {
                 children: [
                   const Text(
                     'Choose Category',
-                    style: TextStyle(
-                      fontSize: 26,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
-                    ),
+                    style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: Colors.black87),
                   ),
                   const SizedBox(height: 16),
                   const StepProgressBar(value: 0.35),
                   const SizedBox(height: 60),
-
-                  // Dropdown implementation for improved space management
                   DropdownButtonFormField<String>(
                     value: _selectedCategory,
                     decoration: InputDecoration(
                       labelText: 'Select Category',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                       filled: true,
                       fillColor: Colors.grey[50],
                     ),
@@ -92,44 +71,23 @@ class _ChooseCategoryScreenState extends State<ChooseCategoryScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Text(
-                              cat['title']!,
-                              style: const TextStyle(
-                                fontSize: 16,
-                                color: Colors.black87,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                            Text(
-                              cat['subtitle']!,
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey[600],
-                              ),
-                            ),
+                            Text(cat['title']!, style: const TextStyle(fontSize: 16, color: Colors.black87, fontWeight: FontWeight.w500)),
+                            Text(cat['subtitle']!, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
                           ],
                         ),
                       );
                     }).toList(),
-                    onChanged: (value) {
-                      setState(() {
-                        _selectedCategory = value;
-                      });
-                    },
-                    // Ensures the selected text doesn't overlap the subtitle in the collapsed view
+                    onChanged: (value) => setState(() => _selectedCategory = value),
                     selectedItemBuilder: (BuildContext context) {
-                      return _taskCategories.map<Widget>((String item) {
-                        return Text(item);
-                      }).toList();
+                      return _taskCategories.map<Widget>((String item) => Text(item)).toList();
                     },
                   ),
-
                   const Spacer(),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      BackNavButton(onTap: () async {
-                        await AnalyticsService.logTransition(
+                      BackNavButton(onTap: () {
+                        AnalyticsService.logTransition(
                           fromScreen: AnalyticsService.screenChooseCategory,
                           destination: AnalyticsService.screenNewExpense,
                           navButtonId: 'back',
@@ -138,21 +96,19 @@ class _ChooseCategoryScreenState extends State<ChooseCategoryScreen> {
                       }),
                       ForwardNavButton(
                         onTap: _selectedCategory != null
-                            ? () async {
-                              await AnalyticsService.logTransition(
-                                fromScreen: AnalyticsService.screenChooseCategory,
-                                destination: AnalyticsService.screenAmountPaid,
-                                navButtonId: 'forward',
-                              );
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => AmountPaidScreen(
-                                    category: _selectedCategory!,
-                                  ),
-                                ),
-                              );
-                            }
+                            ? () {
+                          AnalyticsService.logTransition(
+                            fromScreen: AnalyticsService.screenChooseCategory,
+                            destination: AnalyticsService.screenAmountPaid,
+                            navButtonId: 'forward',
+                          );
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => AmountPaidScreen(category: _selectedCategory!),
+                            ),
+                          );
+                        }
                             : null,
                       ),
                     ],

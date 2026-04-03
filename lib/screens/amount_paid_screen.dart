@@ -63,11 +63,9 @@ class _AmountPaidScreenState extends State<AmountPaidScreen> {
                         child: TextField(
                           controller: _controller,
                           autofocus: true,
-                          keyboardType: const TextInputType.numberWithOptions(
-                              decimal: true),
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
                           inputFormatters: [
-                            FilteringTextInputFormatter.allow(
-                                RegExp(r'^\d+\.?\d{0,2}')),
+                            FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
                           ],
                           style: const TextStyle(
                             fontSize: 40,
@@ -82,16 +80,13 @@ class _AmountPaidScreenState extends State<AmountPaidScreen> {
                               fontWeight: FontWeight.w300,
                             ),
                             border: UnderlineInputBorder(
-                              borderSide:
-                                  BorderSide(color: Color(0xFFCCCCCC), width: 1.5),
+                              borderSide: BorderSide(color: Color(0xFFCCCCCC), width: 1.5),
                             ),
                             focusedBorder: UnderlineInputBorder(
-                              borderSide:
-                                  BorderSide(color: Color(0xFF1A73E8), width: 2),
+                              borderSide: BorderSide(color: Color(0xFF1A73E8), width: 2),
                             ),
                             enabledBorder: UnderlineInputBorder(
-                              borderSide:
-                                  BorderSide(color: Color(0xFFCCCCCC), width: 1.5),
+                              borderSide: BorderSide(color: Color(0xFFCCCCCC), width: 1.5),
                             ),
                           ),
                           onChanged: (_) => setState(() {}),
@@ -103,8 +98,8 @@ class _AmountPaidScreenState extends State<AmountPaidScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      BackNavButton(onTap: () async {
-                        await AnalyticsService.logTransition(
+                      BackNavButton(onTap: () {
+                        AnalyticsService.logTransition(
                           fromScreen: AnalyticsService.screenAmountPaid,
                           destination: AnalyticsService.screenChooseCategory,
                           navButtonId: 'back',
@@ -113,22 +108,22 @@ class _AmountPaidScreenState extends State<AmountPaidScreen> {
                       }),
                       ForwardNavButton(
                         onTap: _controller.text.isNotEmpty
-                            ? () async {
-                              await AnalyticsService.logTransition(
-                                fromScreen: AnalyticsService.screenAmountPaid,
-                                destination: AnalyticsService.screenTransactionDetails,
-                                navButtonId: 'forward',
-                              );
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => TransactionDetailsScreen(
-                                    category: widget.category,
-                                    amount: _controller.text,
-                                  ),
-                                ),
-                              );
-                            }
+                            ? () {
+                          AnalyticsService.logTransition(
+                            fromScreen: AnalyticsService.screenAmountPaid,
+                            destination: AnalyticsService.screenTransactionDetails,
+                            navButtonId: 'forward',
+                          );
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => TransactionDetailsScreen(
+                                category: widget.category,
+                                amount: _controller.text,
+                              ),
+                            ),
+                          );
+                        }
                             : null,
                       ),
                     ],
