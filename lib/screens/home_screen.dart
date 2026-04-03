@@ -8,15 +8,15 @@ class HomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final isMobile = screenWidth < _mobileBreakpoint;
-    return isMobile ? const _MobileHomeLayout() : const _WebHomeLayout();
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isMobile = constraints.maxWidth < _mobileBreakpoint;
+        return isMobile ? const _MobileHomeLayout() : const _WebHomeLayout();
+      },
+    );
   }
 }
 
-// ─────────────────────────────────────────────
-// MOBILE LAYOUT
-// ─────────────────────────────────────────────
 class _MobileHomeLayout extends StatelessWidget {
   const _MobileHomeLayout();
 
