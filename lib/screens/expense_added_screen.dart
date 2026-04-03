@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'home_screen.dart';
 
 class ExpenseAddedScreen extends StatelessWidget {
   const ExpenseAddedScreen({super.key});
@@ -53,12 +52,9 @@ class ExpenseAddedScreen extends StatelessWidget {
                     width: double.infinity,
                     child: ElevatedButton(
                       onPressed: () {
-                        Navigator.pushAndRemoveUntil(
-                          context,
-                          MaterialPageRoute(
-                              builder: (_) => const HomeScreen()),
-                          (route) => false,
-                        );
+                        // Pop all expense-flow screens to return to the
+                        // existing HomeScreen already on the stack.
+                        Navigator.popUntil(context, (route) => route.isFirst);
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF1A73E8),

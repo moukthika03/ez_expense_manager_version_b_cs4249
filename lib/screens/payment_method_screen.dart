@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'expense_added_screen.dart';
 import '../widgets/shared_widgets.dart';
+import '../services/expense_service.dart';
+import '../models/expense_model.dart';
+import '../services/analytics_service.dart';
 
 class PaymentMethodScreen extends StatefulWidget {
   final String category;
@@ -80,11 +83,11 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                         children: ['DBS PayLah', 'GrabPay', 'dash', 'fave', 'Singtel Dash']
                             .map(
                               (name) => Chip(
-                                label: Text(name,
-                                    style: const TextStyle(fontSize: 12)),
-                                backgroundColor: Colors.grey.shade100,
-                              ),
-                            )
+                            label: Text(name,
+                                style: const TextStyle(fontSize: 12)),
+                            backgroundColor: Colors.grey.shade100,
+                          ),
+                        )
                             .toList(),
                       ),
                     ),
@@ -170,15 +173,41 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      BackNavButton(onTap: () => Navigator.pop(context)),
+                      BackNavButton(onTap: () async {
+                        await AnalyticsService.logTransition(
+                          fromScreen: AnalyticsService.screenPaymentMethod,
+                          destination: AnalyticsService.screenTransactionDetails,
+                          navButtonId: 'back',
+                        );
+                        Navigator.pop(context);
+                      }),
                       if (_selectedMethod != null)
                         ElevatedButton(
-                          onPressed: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const ExpenseAddedScreen(),
-                            ),
-                          ),
+                          onPressed: () async {
+                            await AnalyticsService.logTransition(
+                              fromScreen: AnalyticsService.screenPaymentMethod,
+                              destination: AnalyticsService.screenExpenseAdded,
+                              navButtonId: 'confirm',
+                            );
+                            await AnalyticsService.logCompleted();
+                            await ExpenseService.addExpense(
+                              ExpenseModel(
+                                title: widget.payee,
+                                description: widget.description,
+                                amount: double.tryParse(widget.amount) ?? 0.0,
+                                date: DateTime.now(),
+                                category: widget.category,
+                              ),
+                            );
+                            if (context.mounted) {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const ExpenseAddedScreen(),
+                                ),
+                              );
+                            }
+                          },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFF1A73E8),
                             foregroundColor: Colors.white,

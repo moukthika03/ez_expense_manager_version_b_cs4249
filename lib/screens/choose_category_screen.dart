@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'amount_paid_screen.dart';
 import '../widgets/shared_widgets.dart';
+import '../services/expense_service.dart';
+import '../services/analytics_service.dart';
 
 class ChooseCategoryScreen extends StatefulWidget {
   final String expenseType;
@@ -14,20 +16,35 @@ class ChooseCategoryScreen extends StatefulWidget {
 class _ChooseCategoryScreenState extends State<ChooseCategoryScreen> {
   String? _selectedCategory;
 
-  final List<Map<String, String>> _categories = [
-    {
-      'title': 'Living (e.g. utilities, transport)',
-      'subtitle': '-\$1,200 in the last month',
-    },
-    {
-      'title': 'Work-related Expenses',
-      'subtitle': '-\$28.00 in the last month',
-    },
-    {
-      'title': "John's Personal Expenses",
-      'subtitle': '-\$45.20 in the last month',
-    },
+  // Updated categories list based on App A and App B User Tasks
+  final List<String> _taskCategories = [
+    'Transport',
+    'Food',
+    'Groceries',
+    'Appliances',
+    'Healthcare',
+    'Utilities',
+    'Furniture',
+    'Shopping',
+    'Travel',
+    'Entertainment',
   ];
+
+  List<Map<String, String>> get _categories {
+    String monthTotal(String category) {
+      final total = ExpenseService.totalThisMonthByCategory(category.toLowerCase());
+      return total > 0
+          ? '-\$${total.toStringAsFixed(2)} this month'
+          : 'No expenses this month';
+    }
+
+    return _taskCategories.map((category) {
+      return {
+        'title': category,
+        'subtitle': monthTotal(category),
+      };
+    }).toList();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -52,32 +69,90 @@ class _ChooseCategoryScreenState extends State<ChooseCategoryScreen> {
                   ),
                   const SizedBox(height: 16),
                   const StepProgressBar(value: 0.35),
-                  const SizedBox(height: 40),
-                  ..._categories.map((cat) => Padding(
-                        padding: const EdgeInsets.only(bottom: 16),
-                        child: OptionButton(
-                          label: cat['title']!,
-                          subtitle: cat['subtitle'],
-                          isSelected: _selectedCategory == cat['title'],
-                          onTap: () =>
-                              setState(() => _selectedCategory = cat['title']),
+                  const SizedBox(height: 60),
+
+                  // Dropdown implementation for improved space management
+                  DropdownButtonFormField<String>(
+                    value: _selectedCategory,
+                    decoration: InputDecoration(
+                      labelText: 'Select Category',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      filled: true,
+                      fillColor: Colors.grey[50],
+                    ),
+                    hint: const Text("Select the expense category"),
+                    isExpanded: true,
+                    icon: const Icon(Icons.keyboard_arrow_down_rounded),
+                    items: _categories.map((cat) {
+                      return DropdownMenuItem<String>(
+                        value: cat['title'],
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              cat['title']!,
+                              style: const TextStyle(
+                                fontSize: 16,
+                                color: Colors.black87,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            Text(
+                              cat['subtitle']!,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                          ],
                         ),
-                      )),
+                      );
+                    }).toList(),
+                    onChanged: (value) {
+                      setState(() {
+                        _selectedCategory = value;
+                      });
+                    },
+                    // Ensures the selected text doesn't overlap the subtitle in the collapsed view
+                    selectedItemBuilder: (BuildContext context) {
+                      return _taskCategories.map<Widget>((String item) {
+                        return Text(item);
+                      }).toList();
+                    },
+                  ),
+
                   const Spacer(),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      BackNavButton(onTap: () => Navigator.pop(context)),
+                      BackNavButton(onTap: () async {
+                        await AnalyticsService.logTransition(
+                          fromScreen: AnalyticsService.screenChooseCategory,
+                          destination: AnalyticsService.screenNewExpense,
+                          navButtonId: 'back',
+                        );
+                        Navigator.pop(context);
+                      }),
                       ForwardNavButton(
                         onTap: _selectedCategory != null
-                            ? () => Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => AmountPaidScreen(
-                                      category: _selectedCategory!,
-                                    ),
+                            ? () async {
+                              await AnalyticsService.logTransition(
+                                fromScreen: AnalyticsService.screenChooseCategory,
+                                destination: AnalyticsService.screenAmountPaid,
+                                navButtonId: 'forward',
+                              );
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => AmountPaidScreen(
+                                    category: _selectedCategory!,
                                   ),
-                                )
+                                ),
+                              );
+                            }
                             : null,
                       ),
                     ],

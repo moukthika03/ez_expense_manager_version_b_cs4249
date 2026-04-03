@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+import '../models/expense_model.dart';
+import '../services/expense_service.dart';
 import 'new_expense_screen.dart';
+import '../services/analytics_service.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -8,122 +12,393 @@ class HomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final isMobile = constraints.maxWidth < _mobileBreakpoint;
-        return isMobile ? const _MobileHomeLayout() : const _WebHomeLayout();
+    // ValueListenableBuilder rebuilds whenever the Hive box changes
+    // (e.g. after a new expense is saved from NewExpenseScreen).
+    return ValueListenableBuilder<Box<ExpenseModel>>(
+      valueListenable: ExpenseService.listenable(),
+      builder: (context, box, _) {
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            final isMobile = constraints.maxWidth < _mobileBreakpoint;
+            return isMobile
+                ? _MobileHomeLayout(box: box)
+                : _WebHomeLayout(box: box);
+          },
+        );
       },
     );
   }
 }
 
+// ─────────────────────────────────────────────
+// MOBILE LAYOUT
+// ─────────────────────────────────────────────
 class _MobileHomeLayout extends StatelessWidget {
-  const _MobileHomeLayout();
+  final Box<ExpenseModel> box;
+  const _MobileHomeLayout({required this.box});
 
   @override
   Widget build(BuildContext context) {
+    final recent = ExpenseService.getAll().take(5).toList();
+
     return Scaffold(
       backgroundColor: Colors.white,
-      body: Stack(
-        children: [
-          SafeArea(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(20, 24, 20, 160),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(20, 24, 20, 100),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // ── Greeting ────────────────────────────────────────────────
+              const Center(
+                child: Text(
+                  'Hey there!',
+                  style: TextStyle(
+                    fontSize: 30,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+
+              // ── Summary cards ────────────────────────────────────────────
+              const Text(
+                'Expense summary',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+              ),
+              const SizedBox(height: 14),
+              GridView.count(
+                crossAxisCount: 2,
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                mainAxisSpacing: 12,
+                crossAxisSpacing: 12,
+                childAspectRatio: 1.55,
                 children: [
-                  // Title
-                  const Center(
-                    child: Text(
-                      'Hey there John!',
-                      style: TextStyle(
-                        fontSize: 30,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black87,
-                      ),
+                  _SummaryCard(
+                    label: 'Today',
+                    amount: ExpenseService.totalToday(),
+                    icon: Icons.today,
+                    color: const Color(0xFF1A73E8),
+                  ),
+                  _SummaryCard(
+                    label: 'This week',
+                    amount: ExpenseService.totalThisWeek(),
+                    icon: Icons.date_range,
+                    color: const Color(0xFF00897B),
+                  ),
+                  _SummaryCard(
+                    label: 'This month',
+                    amount: ExpenseService.totalThisMonth(),
+                    icon: Icons.calendar_month,
+                    color: const Color(0xFF7B1FA2),
+                  ),
+                  _SummaryCard(
+                    label: 'This year',
+                    amount: ExpenseService.totalThisYear(),
+                    icon: Icons.bar_chart,
+                    color: const Color(0xFFE65100),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 28),
+
+              // ── Action buttons ───────────────────────────────────────────
+              Row(
+                children: [
+                  Expanded(
+                    child: _MobileActionButton(
+                      label: 'Add income',
+                      icon: Icons.savings,
+                      onTap: () {},
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: _MobileActionButton(
+                      label: 'Add expense',
+                      icon: Icons.account_balance_wallet,
+                      onTap: () async {
+                        await AnalyticsService.startSession();
+                        await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const NewExpenseScreen(),
+                          ),
+                        );
+                        // No setState needed — ValueListenableBuilder handles refresh.
+                      },
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 28),
 
-                  // Balance
+              // ── Recent transactions ──────────────────────────────────────
+              const Text(
+                'Recent transactions',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+              ),
+              const SizedBox(height: 14),
+
+              if (recent.isEmpty)
+                const Center(
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(vertical: 32),
+                    child: Text(
+                      'No expenses yet.\nTap "Add expense" to get started!',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Colors.black45, fontSize: 14),
+                    ),
+                  ),
+                )
+              else
+                ...recent.map(
+                      (e) => Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: _MobileTransactionCard(
+                      name: e.title,
+                      description: e.description,
+                      amount: '-\$${e.amount.toStringAsFixed(2)}',
+                      avatarColor: _categoryColor(e.category),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────
+// WEB LAYOUT
+// ─────────────────────────────────────────────
+class _WebHomeLayout extends StatelessWidget {
+  final Box<ExpenseModel> box;
+  const _WebHomeLayout({required this.box});
+
+  @override
+  Widget build(BuildContext context) {
+    final recent = ExpenseService.getAll().take(5).toList();
+
+    return Scaffold(
+      backgroundColor: Colors.white,
+      body: SafeArea(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 960),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  // ── Greeting ──────────────────────────────────────────
                   const Text(
-                    'Current balance: \$5,600.00',
+                    'Hey there!',
                     style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
                       color: Colors.black87,
                     ),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 28),
 
-                  // Chart
-                  SizedBox(
-                    height: 220,
-                    width: double.infinity,
-                    child: CustomPaint(painter: _LineChartPainter()),
-                  ),
-                  const SizedBox(height: 8),
-                  const Center(
-                    child: Text(
-                      'January 2026',
-                      style: TextStyle(fontSize: 13, color: Colors.black45),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-
-                  // Two big square action buttons
+                  // ── Summary cards (4 across) ───────────────────────────
                   Row(
                     children: [
-                      Expanded(
-                        child: _MobileActionButton(
-                          label: 'Add income',
-                          icon: Icons.savings,
-                          onTap: () {},
-                        ),
+                      _WebSummaryCard(
+                        label: 'Today',
+                        amount: ExpenseService.totalToday(),
+                        icon: Icons.today,
+                        color: const Color(0xFF1A73E8),
                       ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: _MobileActionButton(
-                          label: 'Add expense',
-                          icon: Icons.account_balance_wallet,
-                          onTap: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const NewExpenseScreen(),
-                            ),
-                          ),
-                        ),
+                      const SizedBox(width: 16),
+                      _WebSummaryCard(
+                        label: 'This week',
+                        amount: ExpenseService.totalThisWeek(),
+                        icon: Icons.date_range,
+                        color: const Color(0xFF00897B),
+                      ),
+                      const SizedBox(width: 16),
+                      _WebSummaryCard(
+                        label: 'This month',
+                        amount: ExpenseService.totalThisMonth(),
+                        icon: Icons.calendar_month,
+                        color: const Color(0xFF7B1FA2),
+                      ),
+                      const SizedBox(width: 16),
+                      _WebSummaryCard(
+                        label: 'This year',
+                        amount: ExpenseService.totalThisYear(),
+                        icon: Icons.bar_chart,
+                        color: const Color(0xFFE65100),
                       ),
                     ],
                   ),
                   const SizedBox(height: 28),
 
-                  // Recent transactions
-                  const Text(
-                    'Recent transactions',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
-                    ),
-                  ),
-                  const SizedBox(height: 14),
+                  // ── Body: transactions left, actions right ─────────────
+                  Expanded(
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Left — recent transactions
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Recent transactions',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.black87,
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              if (recent.isEmpty)
+                                const Padding(
+                                  padding: EdgeInsets.only(top: 24),
+                                  child: Text(
+                                    'No expenses yet.',
+                                    style: TextStyle(color: Colors.black45),
+                                  ),
+                                )
+                              else
+                                ...recent.map(
+                                      (e) => Padding(
+                                    padding: const EdgeInsets.only(bottom: 12),
+                                    child: _WebTransactionCard(
+                                      name: e.title,
+                                      amount:
+                                      '-\$${e.amount.toStringAsFixed(2)}',
+                                      description: e.description,
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
 
-                  _MobileTransactionCard(
-                    name: 'FairPrice',
-                    description: 'groceries for baking sesh',
-                    amount: '-\$42.90',
-                    avatarColor: const Color(0xFF1A73E8),
-                  ),
-                  const SizedBox(height: 12),
-                  _MobileTransactionCard(
-                    name: 'Starbucks',
-                    description: 'luncheon with friends',
-                    amount: '-\$30.00',
-                    avatarColor: const Color(0xFF00704A),
+                        // Divider
+                        Container(
+                          width: 1,
+                          margin:
+                          const EdgeInsets.symmetric(horizontal: 28),
+                          color: Colors.grey.shade200,
+                        ),
+
+                        // Right — quick actions
+                        SizedBox(
+                          width: 200,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              const Text(
+                                'Quick actions',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.black87,
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              _WebActionButton(
+                                label: 'Add expense',
+                                icon: Icons.account_balance_wallet,
+                                onTap: () async {
+                                  await AnalyticsService.startSession();
+                                  await Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) =>
+                                      const NewExpenseScreen(),
+                                    ),
+                                  );
+                                },
+                              ),
+                              const SizedBox(height: 12),
+                              _WebActionButton(
+                                label: 'Add income',
+                                icon: Icons.savings,
+                                onTap: () {},
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────
+// Summary card — mobile (compact grid tile)
+// ─────────────────────────────────────────────
+class _SummaryCard extends StatelessWidget {
+  final String label;
+  final double amount;
+  final IconData icon;
+  final Color color;
+
+  const _SummaryCard({
+    required this.label,
+    required this.amount,
+    required this.icon,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withOpacity(0.20)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Row(
+            children: [
+              Icon(icon, color: color, size: 16),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: TextStyle(
+                  color: color,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          Text(
+            '\$${amount.toStringAsFixed(2)}',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: color,
             ),
           ),
         ],
@@ -132,6 +407,68 @@ class _MobileHomeLayout extends StatelessWidget {
   }
 }
 
+// ─────────────────────────────────────────────
+// Summary card — web (wider Expanded tile)
+// ─────────────────────────────────────────────
+class _WebSummaryCard extends StatelessWidget {
+  final String label;
+  final double amount;
+  final IconData icon;
+  final Color color;
+
+  const _WebSummaryCard({
+    required this.label,
+    required this.amount,
+    required this.icon,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.08),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: color.withOpacity(0.20)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(icon, color: color, size: 18),
+                const SizedBox(width: 8),
+                Text(
+                  label,
+                  style: TextStyle(
+                    color: color,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Text(
+              '\$${amount.toStringAsFixed(2)}',
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────
+// Mobile action button
+// ─────────────────────────────────────────────
 class _MobileActionButton extends StatelessWidget {
   final String label;
   final IconData icon;
@@ -173,6 +510,9 @@ class _MobileActionButton extends StatelessWidget {
   }
 }
 
+// ─────────────────────────────────────────────
+// Mobile transaction card
+// ─────────────────────────────────────────────
 class _MobileTransactionCard extends StatelessWidget {
   final String name;
   final String description;
@@ -205,7 +545,7 @@ class _MobileTransactionCard extends StatelessWidget {
             ),
             child: Center(
               child: Text(
-                name[0],
+                name.isNotEmpty ? name[0].toUpperCase() : '?',
                 style: const TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
@@ -253,143 +593,8 @@ class _MobileTransactionCard extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────
-// WEB LAYOUT
+// Web action button
 // ─────────────────────────────────────────────
-class _WebHomeLayout extends StatelessWidget {
-  const _WebHomeLayout();
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: SafeArea(
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 900),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  const Text(
-                    'Hey there John!',
-                    style: TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  Expanded(
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Left: Recent transactions
-                        SizedBox(
-                          width: 260,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                'Recent transactions',
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.black87,
-                                ),
-                              ),
-                              const SizedBox(height: 16),
-                              _WebTransactionCard(
-                                name: 'FairPrice',
-                                amount: '-\$42.90',
-                                description: 'groceries for baking session',
-                              ),
-                              const SizedBox(height: 12),
-                              _WebTransactionCard(
-                                name: 'Starbucks',
-                                amount: '-\$30.00',
-                                description: 'luncheon with my friends',
-                              ),
-                            ],
-                          ),
-                        ),
-                        // Vertical divider
-                        Container(
-                          width: 1,
-                          margin:
-                          const EdgeInsets.symmetric(horizontal: 24),
-                          color: Colors.grey.shade200,
-                        ),
-                        // Right: Balance + Chart
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                'Current balance: \$5,600.00',
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.black87,
-                                ),
-                              ),
-                              const SizedBox(height: 16),
-                              Expanded(
-                                child: SizedBox(
-                                  width: double.infinity,
-                                  child: CustomPaint(
-                                    painter: _LineChartPainter(),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              const Center(
-                                child: Text(
-                                  'January 2026',
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    color: Colors.black45,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      _WebActionButton(
-                        label: 'Add expense',
-                        icon: Icons.account_balance_wallet,
-                        onTap: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const NewExpenseScreen(),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      _WebActionButton(
-                        label: 'Add income',
-                        icon: Icons.savings,
-                        onTap: () {},
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 class _WebActionButton extends StatelessWidget {
   final String label;
   final IconData icon;
@@ -409,7 +614,7 @@ class _WebActionButton extends StatelessWidget {
       label: Text(
         label,
         style: const TextStyle(
-          fontSize: 16,
+          fontSize: 15,
           fontWeight: FontWeight.w600,
           color: Colors.white,
         ),
@@ -417,7 +622,7 @@ class _WebActionButton extends StatelessWidget {
       style: ElevatedButton.styleFrom(
         backgroundColor: const Color(0xFF1A73E8),
         padding:
-        const EdgeInsets.symmetric(horizontal: 28, vertical: 16),
+        const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
         shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14)),
         elevation: 0,
@@ -426,6 +631,9 @@ class _WebActionButton extends StatelessWidget {
   }
 }
 
+// ─────────────────────────────────────────────
+// Web transaction card
+// ─────────────────────────────────────────────
 class _WebTransactionCard extends StatelessWidget {
   final String name;
   final String amount;
@@ -459,7 +667,7 @@ class _WebTransactionCard extends StatelessWidget {
             radius: 20,
             backgroundColor: Colors.grey.shade200,
             child: Text(
-              name[0],
+              name.isNotEmpty ? name[0].toUpperCase() : '?',
               style: const TextStyle(
                   fontWeight: FontWeight.bold, fontSize: 15),
             ),
@@ -472,9 +680,6 @@ class _WebTransactionCard extends StatelessWidget {
                 Text(name,
                     style: const TextStyle(
                         fontWeight: FontWeight.bold, fontSize: 15)),
-                Text(amount,
-                    style: const TextStyle(
-                        fontSize: 13, color: Colors.black87)),
                 const SizedBox(height: 2),
                 Text(description,
                     style: const TextStyle(
@@ -482,6 +687,11 @@ class _WebTransactionCard extends StatelessWidget {
               ],
             ),
           ),
+          Text(amount,
+              style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black87)),
         ],
       ),
     );
@@ -489,62 +699,17 @@ class _WebTransactionCard extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────
-// SHARED: Line chart painter
+// Helper: pick avatar colour by category
 // ─────────────────────────────────────────────
-class _LineChartPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final gridPaint = Paint()
-      ..color = const Color(0xFFE5E7EB)
-      ..strokeWidth = 1;
-    for (int i = 0; i <= 4; i++) {
-      final y = size.height * i / 4;
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), gridPaint);
-    }
-
-    final pts = [
-      Offset(size.width * 0.00, size.height * 0.52),
-      Offset(size.width * 0.12, size.height * 0.62),
-      Offset(size.width * 0.28, size.height * 0.78),
-      Offset(size.width * 0.38, size.height * 0.88),
-      Offset(size.width * 0.58, size.height * 0.30),
-      Offset(size.width * 0.72, size.height * 0.38),
-      Offset(size.width * 0.84, size.height * 0.44),
-      Offset(size.width * 1.00, size.height * 0.06),
-    ];
-
-    final linePaint = Paint()
-      ..color = const Color(0xFF1A73E8)
-      ..strokeWidth = 3.0
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
-
-    final path = Path()..moveTo(pts[0].dx, pts[0].dy);
-    for (int i = 1; i < pts.length; i++) {
-      path.lineTo(pts[i].dx, pts[i].dy);
-    }
-    canvas.drawPath(path, linePaint);
-
-    void drawLabel(String text, Offset pos) {
-      final tp = TextPainter(
-        text: TextSpan(
-          text: text,
-          style: const TextStyle(
-            fontSize: 13,
-            color: Color(0xFF6B7280),
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-        textDirection: TextDirection.ltr,
-      )..layout();
-      tp.paint(canvas, pos);
-    }
-
-    drawLabel('\$5,210.90', Offset(4, pts[0].dy + 6));
-    drawLabel('\$5,600.00', Offset(size.width - 76, pts.last.dy - 22));
+Color _categoryColor(String category) {
+  switch (category.toLowerCase()) {
+    case 'food':
+      return const Color(0xFF00897B);
+    case 'transport':
+      return const Color(0xFF1A73E8);
+    case 'shopping':
+      return const Color(0xFF7B1FA2);
+    default:
+      return const Color(0xFFE65100);
   }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

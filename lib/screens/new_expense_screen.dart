@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'choose_category_screen.dart';
 import '../widgets/shared_widgets.dart';
+import '../services/analytics_service.dart';
 
 class NewExpenseScreen extends StatefulWidget {
   const NewExpenseScreen({super.key});
@@ -87,14 +88,21 @@ class _NewExpenseScreenState extends State<NewExpenseScreen> {
                     alignment: Alignment.centerRight,
                     child: ForwardNavButton(
                       onTap: _selected != null
-                          ? () => Navigator.push(
+                          ? () async {
+                              await AnalyticsService.logTransition(
+                                fromScreen: AnalyticsService.screenNewExpense,
+                                destination: AnalyticsService.screenChooseCategory,
+                                navButtonId: 'forward',
+                              );
+                              Navigator.push(
                                 context,
                                 MaterialPageRoute(
                                   builder: (_) => ChooseCategoryScreen(
                                     expenseType: _selected!,
                                   ),
                                 ),
-                              )
+                              );
+                            }
                           : null,
                     ),
                   ),

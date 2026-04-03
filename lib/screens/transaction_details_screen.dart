@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'payment_method_screen.dart';
 import '../widgets/shared_widgets.dart';
+import '../services/analytics_service.dart';
 
 class TransactionDetailsScreen extends StatefulWidget {
   final String category;
@@ -225,20 +226,34 @@ class _TransactionDetailsScreenState extends State<TransactionDetailsScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      BackNavButton(onTap: () => Navigator.pop(context)),
+                      BackNavButton(onTap: () async {
+                        await AnalyticsService.logTransition(
+                          fromScreen: AnalyticsService.screenTransactionDetails,
+                          destination: AnalyticsService.screenAmountPaid,
+                          navButtonId: 'back',
+                        );
+                        Navigator.pop(context);
+                      }),
                       ForwardNavButton(
                         onTap: _payeeController.text.isNotEmpty
-                            ? () => Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => PaymentMethodScreen(
-                                      category: widget.category,
-                                      amount: widget.amount,
-                                      payee: _payeeController.text,
-                                      description: _descController.text,
-                                    ),
+                            ? () async {
+                              await AnalyticsService.logTransition(
+                                fromScreen: AnalyticsService.screenTransactionDetails,
+                                destination: AnalyticsService.screenPaymentMethod,
+                                navButtonId: 'forward',
+                              );
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => PaymentMethodScreen(
+                                    category: widget.category,
+                                    amount: widget.amount,
+                                    payee: _payeeController.text,
+                                    description: _descController.text,
                                   ),
-                                )
+                                ),
+                              );
+                            }
                             : null,
                       ),
                     ],

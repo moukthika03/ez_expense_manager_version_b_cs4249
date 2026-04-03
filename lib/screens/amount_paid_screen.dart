@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'transaction_details_screen.dart';
 import '../widgets/shared_widgets.dart';
+import '../services/analytics_service.dart';
 
 class AmountPaidScreen extends StatefulWidget {
   final String category;
@@ -102,18 +103,32 @@ class _AmountPaidScreenState extends State<AmountPaidScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      BackNavButton(onTap: () => Navigator.pop(context)),
+                      BackNavButton(onTap: () async {
+                        await AnalyticsService.logTransition(
+                          fromScreen: AnalyticsService.screenAmountPaid,
+                          destination: AnalyticsService.screenChooseCategory,
+                          navButtonId: 'back',
+                        );
+                        Navigator.pop(context);
+                      }),
                       ForwardNavButton(
                         onTap: _controller.text.isNotEmpty
-                            ? () => Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => TransactionDetailsScreen(
-                                      category: widget.category,
-                                      amount: _controller.text,
-                                    ),
+                            ? () async {
+                              await AnalyticsService.logTransition(
+                                fromScreen: AnalyticsService.screenAmountPaid,
+                                destination: AnalyticsService.screenTransactionDetails,
+                                navButtonId: 'forward',
+                              );
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => TransactionDetailsScreen(
+                                    category: widget.category,
+                                    amount: _controller.text,
                                   ),
-                                )
+                                ),
+                              );
+                            }
                             : null,
                       ),
                     ],
