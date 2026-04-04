@@ -34,7 +34,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
         child: Center(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 700),
-            child: Padding(
+            child: SingleChildScrollView( // allows scroll if expanded card pushes buttons off screen
               padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 24),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.center,
@@ -126,7 +126,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                     onTap: () => setState(() => _selectedMethod = 'other'),
                   ),
 
-                  const Spacer(),
+                  const SizedBox(height: 32), // tight gap instead of Spacer
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -141,7 +141,6 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                       if (_selectedMethod != null)
                         ElevatedButton(
                           onPressed: () async {
-                            // Analytics fires instantly, no await
                             AnalyticsService.logTransition(
                               fromScreen: AnalyticsService.screenPaymentMethod,
                               destination: AnalyticsService.screenExpenseAdded,
@@ -149,7 +148,6 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                             );
                             AnalyticsService.logCompleted();
 
-                            // Expense saving still awaited (local Hive write — fast)
                             await ExpenseService.addExpense(
                               ExpenseModel(
                                 title: widget.payee,

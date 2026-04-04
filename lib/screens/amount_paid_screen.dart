@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'transaction_details_screen.dart';
 import '../widgets/shared_widgets.dart';
 import '../services/analytics_service.dart';
+import '../services/flow_state_service.dart';
 
 class AmountPaidScreen extends StatefulWidget {
   final String category;
@@ -94,7 +95,7 @@ class _AmountPaidScreenState extends State<AmountPaidScreen> {
                       ),
                     ],
                   ),
-                  const Spacer(),
+                  const SizedBox(height: 32),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -113,6 +114,15 @@ class _AmountPaidScreenState extends State<AmountPaidScreen> {
                             fromScreen: AnalyticsService.screenAmountPaid,
                             destination: AnalyticsService.screenTransactionDetails,
                             navButtonId: 'forward',
+                          );
+                          // Persist progress — carry forward everything collected so far.
+                          final prev = FlowStateService.savedData;
+                          FlowStateService.save(
+                            step: FlowStateService.stepTransactionDetails,
+                            data: {
+                              ...prev,
+                              'amount': _controller.text,
+                            },
                           );
                           Navigator.push(
                             context,

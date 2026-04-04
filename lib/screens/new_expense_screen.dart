@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'choose_category_screen.dart';
 import '../widgets/shared_widgets.dart';
 import '../services/analytics_service.dart';
+import '../services/flow_state_service.dart';
 
 class NewExpenseScreen extends StatefulWidget {
   const NewExpenseScreen({super.key});
@@ -68,7 +69,7 @@ class _NewExpenseScreenState extends State<NewExpenseScreen> {
                       ),
                     ],
                   ),
-                  const Spacer(),
+                  const SizedBox(height: 32),
                   Align(
                     alignment: Alignment.centerRight,
                     child: ForwardNavButton(
@@ -78,6 +79,11 @@ class _NewExpenseScreenState extends State<NewExpenseScreen> {
                           fromScreen: AnalyticsService.screenNewExpense,
                           destination: AnalyticsService.screenChooseCategory,
                           navButtonId: 'forward',
+                        );
+                        // Persist progress so a refresh can resume here.
+                        FlowStateService.save(
+                          step: FlowStateService.stepChooseCategory,
+                          data: {'expenseType': _selected!},
                         );
                         Navigator.push(
                           context,

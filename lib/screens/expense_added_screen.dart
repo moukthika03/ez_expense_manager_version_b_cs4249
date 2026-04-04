@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../services/flow_state_service.dart';
 
 class ExpenseAddedScreen extends StatelessWidget {
   const ExpenseAddedScreen({super.key});
@@ -52,8 +53,9 @@ class ExpenseAddedScreen extends StatelessWidget {
                     width: double.infinity,
                     child: ElevatedButton(
                       onPressed: () {
-                        // Pop all expense-flow screens to return to the
-                        // existing HomeScreen already on the stack.
+                        // Flow is complete — remove persisted session state so a
+                        // refresh after this point starts a fresh flow.
+                        FlowStateService.clear();
                         Navigator.popUntil(context, (route) => route.isFirst);
                       },
                       style: ElevatedButton.styleFrom(

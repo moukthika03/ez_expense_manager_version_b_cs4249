@@ -3,12 +3,71 @@ import 'package:hive_flutter/hive_flutter.dart';
 import '../models/expense_model.dart';
 import '../services/expense_service.dart';
 import 'new_expense_screen.dart';
+import 'choose_category_screen.dart';
+import 'amount_paid_screen.dart';
+import 'transaction_details_screen.dart';
+import 'payment_method_screen.dart';
 import '../services/analytics_service.dart';
+import '../services/flow_state_service.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
   static const double _mobileBreakpoint = 600;
+
+  @override
+  void initState() {
+    super.initState();
+    // After the first frame, check whether the user was mid-flow before
+    // the last browser refresh and, if so, navigate them back there.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _maybeResume());
+  }
+
+  void _maybeResume() {
+    final step = FlowStateService.savedStep;
+    if (step == null || !mounted) return;
+
+    final data = FlowStateService.savedData;
+
+    // Helper to safely extract a saved string.
+    String get(String key) => data[key] ?? '';
+
+    Widget? destination;
+    switch (step) {
+      case FlowStateService.stepChooseCategory:
+        destination = ChooseCategoryScreen(expenseType: get('expenseType'));
+        break;
+      case FlowStateService.stepAmountPaid:
+        destination = AmountPaidScreen(category: get('category'));
+        break;
+      case FlowStateService.stepTransactionDetails:
+        destination = TransactionDetailsScreen(
+          category: get('category'),
+          amount  : get('amount'),
+        );
+        break;
+      case FlowStateService.stepPaymentMethod:
+        destination = PaymentMethodScreen(
+          category   : get('category'),
+          amount     : get('amount'),
+          payee      : get('payee'),
+          description: get('description'),
+        );
+        break;
+    }
+
+    if (destination != null) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => destination!),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -72,14 +131,12 @@ class _MobileHomeLayout extends StatelessWidget {
               const SizedBox(height: 28),
               Row(
                 children: [
-                  Expanded(child: _MobileActionButton(label: 'Add income',  icon: Icons.savings,                  onTap: () {})),
-                  const SizedBox(width: 14),
                   Expanded(
                     child: _MobileActionButton(
                       label: 'Add expense',
                       icon: Icons.account_balance_wallet,
                       onTap: () {
-                        AnalyticsService.startSession(); // fire and forget
+                        AnalyticsService.startSession();
                         Navigator.push(
                           context,
                           MaterialPageRoute(builder: (_) => const NewExpenseScreen()),
@@ -87,6 +144,8 @@ class _MobileHomeLayout extends StatelessWidget {
                       },
                     ),
                   ),
+                  const SizedBox(width: 14),
+                  Expanded(child: _MobileActionButton(label: 'Add income',  icon: Icons.savings, onTap: () {})),
                 ],
               ),
               const SizedBox(height: 28),
@@ -193,19 +252,19 @@ class _WebHomeLayout extends StatelessWidget {
                         const SizedBox(width: 32),
                         Column(
                           children: [
-                            _WebActionButton(label: 'Add income',  icon: Icons.savings,                  onTap: () {}),
-                            const SizedBox(height: 12),
                             _WebActionButton(
                               label: 'Add expense',
                               icon: Icons.account_balance_wallet,
                               onTap: () {
-                                AnalyticsService.startSession(); // fire and forget
+                                AnalyticsService.startSession();
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(builder: (_) => const NewExpenseScreen()),
                                 );
                               },
                             ),
+                            const SizedBox(height: 12),
+                            _WebActionButton(label: 'Add income',  icon: Icons.savings, onTap: () {}),
                           ],
                         ),
                       ],

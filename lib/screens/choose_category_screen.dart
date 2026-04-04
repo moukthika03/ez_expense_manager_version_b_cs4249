@@ -3,6 +3,7 @@ import 'amount_paid_screen.dart';
 import '../widgets/shared_widgets.dart';
 import '../services/expense_service.dart';
 import '../services/analytics_service.dart';
+import '../services/flow_state_service.dart';
 
 class ChooseCategoryScreen extends StatefulWidget {
   final String expenseType;
@@ -82,7 +83,7 @@ class _ChooseCategoryScreenState extends State<ChooseCategoryScreen> {
                       return _taskCategories.map<Widget>((String item) => Text(item)).toList();
                     },
                   ),
-                  const Spacer(),
+                  const SizedBox(height: 32),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -101,6 +102,15 @@ class _ChooseCategoryScreenState extends State<ChooseCategoryScreen> {
                             fromScreen: AnalyticsService.screenChooseCategory,
                             destination: AnalyticsService.screenAmountPaid,
                             navButtonId: 'forward',
+                          );
+                          // Persist progress — carry forward expenseType from previous step.
+                          final prev = FlowStateService.savedData;
+                          FlowStateService.save(
+                            step: FlowStateService.stepAmountPaid,
+                            data: {
+                              ...prev,
+                              'category': _selectedCategory!,
+                            },
                           );
                           Navigator.push(
                             context,

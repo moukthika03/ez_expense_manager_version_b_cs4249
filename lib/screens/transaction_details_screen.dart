@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'payment_method_screen.dart';
 import '../widgets/shared_widgets.dart';
 import '../services/analytics_service.dart';
+import '../services/flow_state_service.dart';
 
 class TransactionDetailsScreen extends StatefulWidget {
   final String category;
@@ -18,9 +19,13 @@ class _TransactionDetailsScreenState extends State<TransactionDetailsScreen> {
   final TextEditingController _descController  = TextEditingController();
 
   final List<Map<String, String>> _suggestions = [
-    {'name': 'Netflix',    'subtitle': 'Entertainment'},
-    {'name': 'Starbucks',  'subtitle': 'Food & Beverage'},
+    {'name': 'Netflix',   'subtitle': 'Entertainment'},
+    {'name': 'Starbucks', 'subtitle': 'Food & Beverage'},
   ];
+
+  // Forward is enabled only when BOTH payee and description are filled in.
+  bool get _canProceed =>
+      _payeeController.text.isNotEmpty && _descController.text.isNotEmpty;
 
   @override
   void dispose() {
@@ -37,7 +42,7 @@ class _TransactionDetailsScreenState extends State<TransactionDetailsScreen> {
         child: Center(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 700),
-            child: Padding(
+            child: SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 24),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -49,6 +54,7 @@ class _TransactionDetailsScreenState extends State<TransactionDetailsScreen> {
                   const SizedBox(height: 16),
                   const StepProgressBar(value: 0.72),
                   const SizedBox(height: 32),
+
                   const Text('Payee Name',
                       style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: Colors.black87)),
                   const SizedBox(height: 10),
@@ -118,7 +124,9 @@ class _TransactionDetailsScreenState extends State<TransactionDetailsScreen> {
                       ],
                     ),
                   ),
+
                   const SizedBox(height: 24),
+                  // Description is required — label reflects this.
                   const Text('Description of expense',
                       style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: Colors.black87)),
                   const SizedBox(height: 10),
@@ -133,9 +141,12 @@ class _TransactionDetailsScreenState extends State<TransactionDetailsScreen> {
                         contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                         border: InputBorder.none,
                       ),
+                      // Rebuild so the forward button reacts immediately.
+                      onChanged: (_) => setState(() {}),
                     ),
                   ),
-                  const Spacer(),
+
+                  const SizedBox(height: 32),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -148,20 +159,30 @@ class _TransactionDetailsScreenState extends State<TransactionDetailsScreen> {
                         Navigator.pop(context);
                       }),
                       ForwardNavButton(
-                        onTap: _payeeController.text.isNotEmpty
+                        onTap: _canProceed
                             ? () {
                           AnalyticsService.logTransition(
                             fromScreen: AnalyticsService.screenTransactionDetails,
                             destination: AnalyticsService.screenPaymentMethod,
                             navButtonId: 'forward',
                           );
+                          // Persist progress — carry forward all previous data.
+                          final prev = FlowStateService.savedData;
+                          FlowStateService.save(
+                            step: FlowStateService.stepPaymentMethod,
+                            data: {
+                              ...prev,
+                              'payee'      : _payeeController.text,
+                              'description': _descController.text,
+                            },
+                          );
                           Navigator.push(
                             context,
                             MaterialPageRoute(
                               builder: (_) => PaymentMethodScreen(
-                                category: widget.category,
-                                amount: widget.amount,
-                                payee: _payeeController.text,
+                                category   : widget.category,
+                                amount     : widget.amount,
+                                payee      : _payeeController.text,
                                 description: _descController.text,
                               ),
                             ),
