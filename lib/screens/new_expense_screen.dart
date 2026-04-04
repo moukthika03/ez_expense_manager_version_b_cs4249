@@ -15,6 +15,12 @@ class _NewExpenseScreenState extends State<NewExpenseScreen> {
   String? _selected;
 
   @override
+  void initState() {
+    super.initState();
+    AnalyticsService.logScreenView(AnalyticsService.screenNewExpense);
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
@@ -37,7 +43,10 @@ class _NewExpenseScreenState extends State<NewExpenseScreen> {
                   OptionButton(
                     label: 'New Expense',
                     isSelected: _selected == 'new',
-                    onTap: () => setState(() => _selected = 'new'),
+                    onTap: () {
+                      AnalyticsService.logExpenseTypeSelected('new', AnalyticsService.screenNewExpense);
+                      setState(() => _selected = 'new');
+                    },
                   ),
                   const SizedBox(height: 16),
                   Column(
@@ -45,7 +54,10 @@ class _NewExpenseScreenState extends State<NewExpenseScreen> {
                       OptionButton(
                         label: 'Unlogged Expenses',
                         isSelected: _selected == 'unlogged',
-                        onTap: () => setState(() => _selected = 'unlogged'),
+                        onTap: () {
+                          AnalyticsService.logExpenseTypeSelected('unlogged', AnalyticsService.screenNewExpense);
+                          setState(() => _selected = 'unlogged');
+                        },
                       ),
                       Container(
                         width: double.infinity,

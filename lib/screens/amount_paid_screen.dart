@@ -16,9 +16,27 @@ class AmountPaidScreen extends StatefulWidget {
 
 class _AmountPaidScreenState extends State<AmountPaidScreen> {
   final TextEditingController _controller = TextEditingController();
+  final FocusNode _focusNode = FocusNode();
+  bool _hasFocusedOnce = false;
+
+  @override
+  void initState() {
+    super.initState();
+    AnalyticsService.logScreenView(AnalyticsService.screenAmountPaid);
+    _focusNode.addListener(_onFocusChange);
+  }
+
+  void _onFocusChange() {
+    if (_focusNode.hasFocus && !_hasFocusedOnce) {
+      _hasFocusedOnce = true;
+      AnalyticsService.logAmountClicked(AnalyticsService.screenAmountPaid);
+    }
+  }
 
   @override
   void dispose() {
+    _focusNode.removeListener(_onFocusChange);
+    _focusNode.dispose();
     _controller.dispose();
     super.dispose();
   }
@@ -63,6 +81,7 @@ class _AmountPaidScreenState extends State<AmountPaidScreen> {
                       Expanded(
                         child: TextField(
                           controller: _controller,
+                          focusNode: _focusNode,
                           autofocus: true,
                           keyboardType: const TextInputType.numberWithOptions(decimal: true),
                           inputFormatters: [
@@ -110,6 +129,7 @@ class _AmountPaidScreenState extends State<AmountPaidScreen> {
                       ForwardNavButton(
                         onTap: _controller.text.isNotEmpty
                             ? () {
+                          AnalyticsService.logAmountEntered(_controller.text, AnalyticsService.screenAmountPaid);
                           AnalyticsService.logTransition(
                             fromScreen: AnalyticsService.screenAmountPaid,
                             destination: AnalyticsService.screenTransactionDetails,

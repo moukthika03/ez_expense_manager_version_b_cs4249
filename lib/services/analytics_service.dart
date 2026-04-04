@@ -1,107 +1,323 @@
 // ignore: avoid_web_libraries_in_flutter
-import 'dart:html' as html;
-import 'dart:convert';
 import 'dart:js' as js;
+import 'dart:async';
 
 class AnalyticsService {
+  // Google Apps Script web app URL (doGet endpoint)
   static const String _webAppUrl =
-      'https://script.google.com/macros/s/AKfycbx4Rsa_jvmHI2X64vRZfkOdeXaxCtRZ2hNgVTIrdMcqHqV7cK6k10Z9Lofms3cwTiUBxg/exec';
+      'https://script.google.com/macros/s/AKfycbyM2YZh_4b1ida-DxGKSHmHDG8mgUslYT_Nms54GP9dUmiTRudMt6syyH8rruROD2QO3w/exec';
 
-  static const String screenHome               = 'home';
-  static const String screenNewExpense         = 'new_expense';
-  static const String screenChooseCategory     = 'choose_category';
-  static const String screenAmountPaid         = 'amount_paid';
-  static const String screenTransactionDetails = 'transaction_details';
-  static const String screenPaymentMethod      = 'payment_method';
-  static const String screenExpenseAdded       = 'expense_added';
+  // Screen names
+  static const String screenHome               = 'HomeScreen';
+  static const String screenNewExpense         = 'NewExpenseScreen';
+  static const String screenChooseCategory     = 'ChooseCategoryScreen';
+  static const String screenAmountPaid         = 'AmountPaidScreen';
+  static const String screenTransactionDetails = 'TransactionDetailsScreen';
+  static const String screenPaymentMethod      = 'PaymentMethodScreen';
+  static const String screenExpenseAdded       = 'ExpenseAddedScreen';
 
-  static String appVersion = '';
+  static String appVersion = '1.0.0';
   static String trialId    = '';
 
-  static String _sessionId      = '';
-  static DateTime? _sessionStart;
-  static final List<String> _screenSequence = [];
+  static String _sessionId = '';  // Participant ID - set once on app init
+  static bool _sessionInitialized = false;
+  static String _currentScreen = '';
+  static DateTime? _screenEnteredAt;
+  static int _clickCountOnScreen = 0;
+  
+  // Async queue - each event waits for previous to complete
+  static Future<void> _lastEvent = Future.value();
 
-  static void startSession() {
-    _sessionId    = DateTime.now().millisecondsSinceEpoch.toString();
-    _sessionStart = DateTime.now();
-    _screenSequence
-      ..clear()
-      ..add(screenHome);
-    // ignore: avoid_print
-    print('[Analytics] startSession called — sessionId=$_sessionId');
+  /// Initialize participant ID (call once on app start)
+  static void initParticipant() {
+    if (!_sessionInitialized) {
+      _sessionId = 'P${DateTime.now().millisecondsSinceEpoch}';
+      _sessionInitialized = true;
+      // ignore: avoid_print
+      print('[Analytics] initParticipant — sessionId=$_sessionId');
+    }
   }
 
+  /// Start a new trial (call each time user starts logging an expense)
+  static void startSession() {
+    initParticipant();  // Ensure participant ID exists
+    trialId = _generateTrialId();
+    _currentScreen = screenHome;  // Start from HomeScreen
+    _screenEnteredAt = DateTime.now();
+    _clickCountOnScreen = 0;
+    _lastEvent = Future.value();
+    // ignore: avoid_print
+    print('[Analytics] startSession — sessionId=$_sessionId, trialId=$trialId');
+  }
+
+  static String _generateTrialId() {
+    final now = DateTime.now();
+    final random = now.microsecond.toRadixString(16);
+    return '${random.substring(0, 8.clamp(0, random.length))}-${now.millisecond.toRadixString(16).padLeft(4, '0')}-${now.second.toRadixString(16).padLeft(2, '0')}${now.minute.toRadixString(16).padLeft(2, '0')}-${now.hour.toRadixString(16).padLeft(2, '0')}${now.day.toRadixString(16).padLeft(2, '0')}-${now.month.toRadixString(16).padLeft(2, '0')}${now.year.toRadixString(16)}';
+  }
+
+  /// Log a screen view event
+  static void logScreenView(String screenName) {
+    final prevScreenTimeMs = _screenEnteredAt != null
+        ? DateTime.now().difference(_screenEnteredAt!).inMilliseconds
+        : 0;
+
+    _sendEvent(
+      event: 'screen_view',
+      data: 'prev_screen_time_ms:$prevScreenTimeMs',
+      fromScreen: _currentScreen,
+      destination: screenName,
+      timeOnScreenSeconds: prevScreenTimeMs / 1000.0,
+      clickCount: _clickCountOnScreen,
+    );
+
+    _currentScreen = screenName;
+    _screenEnteredAt = DateTime.now();
+    _clickCountOnScreen = 0;
+  }
+
+  /// Log a navigation button click (forward/back)
+  static void logNavigation({
+    required String fromScreen,
+    required String destination,
+    required String navButtonId,
+  }) {
+    _clickCountOnScreen++;
+    _sendEvent(
+      event: 'nav_$navButtonId',
+      data: '',
+      fromScreen: fromScreen,
+      destination: destination,
+    );
+  }
+
+  /// Log a tab selection event
+  static void logTabSelected(String tabName, String fromScreen) {
+    _clickCountOnScreen++;
+    _sendEvent(
+      event: 'tab_selected',
+      data: tabName,
+      fromScreen: fromScreen,
+    );
+  }
+
+  /// Log when amount field is clicked/focused
+  static void logAmountClicked(String fromScreen) {
+    _clickCountOnScreen++;
+    _sendEvent(
+      event: 'amount_clicked',
+      fromScreen: fromScreen,
+    );
+  }
+
+  /// Log when amount is entered/changed
+  static void logAmountEntered(String amount, String fromScreen) {
+    _sendEvent(
+      event: 'amount_entered',
+      data: amount,
+      fromScreen: fromScreen,
+    );
+  }
+
+  /// Log when category dropdown is clicked
+  static void logCategoryClicked(String fromScreen) {
+    _clickCountOnScreen++;
+    _sendEvent(
+      event: 'category_clicked',
+      fromScreen: fromScreen,
+    );
+  }
+
+  /// Log when a category is selected
+  static void logCategorySelected(String category, String fromScreen) {
+    _sendEvent(
+      event: 'category_selected',
+      data: category,
+      fromScreen: fromScreen,
+    );
+  }
+
+  /// Log when payment method is clicked
+  static void logPaymentMethodClicked(String fromScreen) {
+    _clickCountOnScreen++;
+    _sendEvent(
+      event: 'payment_method_clicked',
+      fromScreen: fromScreen,
+    );
+  }
+
+  /// Log when a payment method is selected
+  static void logPaymentMethodSelected(String method, String fromScreen) {
+    _sendEvent(
+      event: 'payment_method_selected',
+      data: method,
+      fromScreen: fromScreen,
+    );
+  }
+
+  /// Log when description field is clicked/focused
+  static void logDescriptionClicked(String fromScreen) {
+    _clickCountOnScreen++;
+    _sendEvent(
+      event: 'description_clicked',
+      fromScreen: fromScreen,
+    );
+  }
+
+  /// Log when description is entered
+  static void logDescriptionEntered(String description, String fromScreen) {
+    _sendEvent(
+      event: 'description_entered',
+      data: description,
+      fromScreen: fromScreen,
+    );
+  }
+
+  /// Log when payee field is clicked/focused
+  static void logPayeeClicked(String fromScreen) {
+    _clickCountOnScreen++;
+    _sendEvent(
+      event: 'payee_clicked',
+      fromScreen: fromScreen,
+    );
+  }
+
+  /// Log when payee is entered
+  static void logPayeeEntered(String payee, String fromScreen) {
+    _sendEvent(
+      event: 'payee_entered',
+      data: payee,
+      fromScreen: fromScreen,
+    );
+  }
+
+  /// Log when payee suggestion is selected
+  static void logPayeeSuggestionSelected(String payee, String fromScreen) {
+    _clickCountOnScreen++;
+    _sendEvent(
+      event: 'payee_suggestion_selected',
+      data: payee,
+      fromScreen: fromScreen,
+    );
+  }
+
+  /// Log expense type selection (new/unlogged)
+  static void logExpenseTypeSelected(String expenseType, String fromScreen) {
+    _clickCountOnScreen++;
+    _sendEvent(
+      event: 'expense_type_selected',
+      data: expenseType,
+      fromScreen: fromScreen,
+    );
+  }
+
+  /// Log confirm button click
+  static void logConfirmClicked(String fromScreen) {
+    _clickCountOnScreen++;
+    _sendEvent(
+      event: 'confirm_clicked',
+      fromScreen: fromScreen,
+    );
+  }
+
+  /// Log task completion
+  static void logCompleted() {
+    _sendEvent(
+      event: 'new_expense_logged',
+      fromScreen: _currentScreen,
+    );
+    // ignore: avoid_print
+    print('[Analytics] logCompleted — new_expense_logged');
+  }
+
+  /// Log task abandoned
+  static void logAbandoned() {
+    _sendEvent(
+      event: 'task_abandoned',
+      fromScreen: _currentScreen,
+    );
+    // ignore: avoid_print
+    print('[Analytics] logAbandoned — task abandoned');
+  }
+
+  /// Log generic button click
+  static void logButtonClick(String buttonName, String fromScreen) {
+    _clickCountOnScreen++;
+    _sendEvent(
+      event: 'button_click',
+      data: buttonName,
+      fromScreen: fromScreen,
+    );
+  }
+
+  /// Log back to home click
+  static void logBackToHome(String fromScreen) {
+    _clickCountOnScreen++;
+    _sendEvent(
+      event: 'back_to_home',
+      fromScreen: fromScreen,
+      destination: screenHome,
+    );
+  }
+
+  /// Legacy transition logging (for backward compatibility)
   static void logTransition({
     required String fromScreen,
     required String destination,
     required String navButtonId,
   }) {
-    _screenSequence.add('$destination($navButtonId)');
-    // ignore: avoid_print
-    print('[Analytics] logTransition: $fromScreen → $destination ($navButtonId) | sequence so far: $_screenSequence');
+    logNavigation(
+      fromScreen: fromScreen,
+      destination: destination,
+      navButtonId: navButtonId,
+    );
   }
 
-  static void logCompleted() {
-    // ignore: avoid_print
-    print('[Analytics] logCompleted called — _sessionStart=$_sessionStart, sequence=$_screenSequence');
-    _flush(completed: true, outcome: 'completed');
-  }
+  /// Send event to Google Apps Script via GET request
+  static void _sendEvent({
+    required String event,
+    String data = '',
+    String fromScreen = '',
+    String destination = '',
+    double? timeOnScreenSeconds,
+    int? clickCount,
+  }) {
+    final timestamp = DateTime.now().toUtc().toIso8601String();
 
-  static void logAbandoned() {
-    // ignore: avoid_print
-    print('[Analytics] logAbandoned called');
-    _flush(completed: false, outcome: 'abandoned');
-  }
-
-  static void _flush({required bool completed, required String outcome}) {
-    if (_sessionStart == null) {
-      // ignore: avoid_print
-      print('[Analytics] _flush bailed — _sessionStart is null (startSession was never called)');
-      return;
-    }
-
-    final timeTaken = DateTime.now().difference(_sessionStart!).inSeconds;
     final params = {
-      'trial_id'                  : trialId,
-      'session_id'                : _sessionId,
-      'app_version'               : appVersion,
-      'session_start'             : _sessionStart!.toIso8601String(),
-      'completed'                 : completed ? 'TRUE' : 'FALSE',
-      'outcome'                   : outcome,
-      'screen_sequence'           : _screenSequence.join(' > '),
-      'time_taken_seconds'        : timeTaken.toString(),
-      'number_of_screens_visited' : _screenSequence.length.toString(),
+      'timestamp': timestamp,
+      'session_id': _sessionId,
+      'trial_id': trialId,
+      'event': event,
+      'data': data,
+      'from_screen': fromScreen,
+      'destination': destination,
+      'time_on_screen_seconds': timeOnScreenSeconds?.toStringAsFixed(2) ?? '',
+      'click_count': clickCount?.toString() ?? '',
     };
 
-    // ignore: avoid_print
-    print('[Analytics] _flush firing with params: $params');
+    // Build query string for GET request
+    final queryString = params.entries
+        .map((e) => '${Uri.encodeComponent(e.key)}=${Uri.encodeComponent(e.value)}')
+        .join('&');
 
-    // ── Why fetch + no-cors instead of XHR ─────────────────────────────
-    // Google Apps Script (doPost) does not send CORS headers, so a normal
-    // cross-origin XHR or fetch is blocked by the browser.
-    // `mode: 'no-cors'` bypasses that restriction: the request IS sent and
-    // executed on the server; the response is just opaque (unreadable).
-    // That is fine for fire-and-forget analytics.
-    // A string body without an explicit Content-Type is treated as
-    // text/plain — a "simple" content type that never triggers a preflight.
-    // The Apps Script receives the JSON string in e.postData.contents and
-    // parses it normally.
-    // ───────────────────────────────────────────────────────────────────
-    final body = jsonEncode(params);
-    js.context.callMethod('fetch', [
-      _webAppUrl,
-      js.JsObject.jsify({
-        'method': 'POST',
-        'body'  : body,
-        'mode'  : 'no-cors',
-      }),
-    ]);
+    final url = '$_webAppUrl?$queryString';
 
     // ignore: avoid_print
-    print('[Analytics] fetch dispatched (no-cors POST)');
+    print('[Analytics] Queuing event: $event');
 
-    _sessionStart = null;
-    _screenSequence.clear();
+    // Chain this event after previous one completes
+    _lastEvent = _lastEvent.then((_) {
+      // ignore: avoid_print
+      print('[Analytics] Sending event: $event');
+      
+      js.context.callMethod('fetch', [
+        url,
+        js.JsObject.jsify({
+          'method': 'GET',
+          'mode': 'no-cors',
+        }),
+      ]);
+    });
   }
 }

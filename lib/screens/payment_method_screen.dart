@@ -27,6 +27,12 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
   String? _selectedMethod;
 
   @override
+  void initState() {
+    super.initState();
+    AnalyticsService.logScreenView(AnalyticsService.screenPaymentMethod);
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
@@ -48,7 +54,11 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                   OptionButton(
                     label: 'Electronic transfer',
                     isSelected: _selectedMethod == 'electronic',
-                    onTap: () => setState(() => _selectedMethod = 'electronic'),
+                    onTap: () {
+                      AnalyticsService.logPaymentMethodClicked(AnalyticsService.screenPaymentMethod);
+                      AnalyticsService.logPaymentMethodSelected('Electronic transfer', AnalyticsService.screenPaymentMethod);
+                      setState(() => _selectedMethod = 'electronic');
+                    },
                   ),
                   if (_selectedMethod == 'electronic') ...[
                     Container(
@@ -77,7 +87,11 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                   OptionButton(
                     label: 'Credit/debit card',
                     isSelected: _selectedMethod == 'card',
-                    onTap: () => setState(() => _selectedMethod = 'card'),
+                    onTap: () {
+                      AnalyticsService.logPaymentMethodClicked(AnalyticsService.screenPaymentMethod);
+                      AnalyticsService.logPaymentMethodSelected('Credit Card', AnalyticsService.screenPaymentMethod);
+                      setState(() => _selectedMethod = 'card');
+                    },
                   ),
                   if (_selectedMethod == 'card') ...[
                     Container(
@@ -123,7 +137,11 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                   OptionButton(
                     label: 'Other',
                     isSelected: _selectedMethod == 'other',
-                    onTap: () => setState(() => _selectedMethod = 'other'),
+                    onTap: () {
+                      AnalyticsService.logPaymentMethodClicked(AnalyticsService.screenPaymentMethod);
+                      AnalyticsService.logPaymentMethodSelected('Other', AnalyticsService.screenPaymentMethod);
+                      setState(() => _selectedMethod = 'other');
+                    },
                   ),
 
                   const SizedBox(height: 32), // tight gap instead of Spacer
@@ -141,6 +159,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                       if (_selectedMethod != null)
                         ElevatedButton(
                           onPressed: () async {
+                            AnalyticsService.logConfirmClicked(AnalyticsService.screenPaymentMethod);
                             AnalyticsService.logTransition(
                               fromScreen: AnalyticsService.screenPaymentMethod,
                               destination: AnalyticsService.screenExpenseAdded,

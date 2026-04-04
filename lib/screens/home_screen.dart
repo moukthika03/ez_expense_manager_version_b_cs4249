@@ -129,24 +129,32 @@ class _MobileHomeLayout extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 28),
-              Row(
-                children: [
-                  Expanded(
-                    child: _MobileActionButton(
-                      label: 'Add expense',
-                      icon: Icons.account_balance_wallet,
-                      onTap: () {
-                        AnalyticsService.startSession();
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (_) => const NewExpenseScreen()),
-                        );
-                      },
-                    ),
+              Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 500),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: _MobileActionButton(
+                          label: 'Add expense',
+                          icon: Icons.account_balance_wallet,
+                          onTap: () {
+                            AnalyticsService.startSession();
+                            AnalyticsService.logButtonClick('add_expense', AnalyticsService.screenHome);
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (_) => const NewExpenseScreen()),
+                            );
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: _MobileActionButton(label: 'Add income', icon: Icons.savings, onTap: () {}),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 14),
-                  Expanded(child: _MobileActionButton(label: 'Add income',  icon: Icons.savings, onTap: () {})),
-                ],
+                ),
               ),
               const SizedBox(height: 28),
               const Text('Recent transactions',
@@ -216,58 +224,62 @@ class _WebHomeLayout extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 28),
-                  Expanded(
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          flex: 3,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text('Recent transactions',
-                                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87)),
-                              const SizedBox(height: 14),
-                              if (recent.isEmpty)
-                                const Center(
-                                  child: Padding(
-                                    padding: EdgeInsets.symmetric(vertical: 32),
-                                    child: Text('No expenses yet.\nTap "Add expense" to get started!',
-                                        textAlign: TextAlign.center,
-                                        style: TextStyle(color: Colors.black45, fontSize: 14)),
-                                  ),
-                                )
-                              else
-                                ...recent.map((e) => Padding(
-                                  padding: const EdgeInsets.only(bottom: 12),
-                                  child: _WebTransactionCard(
-                                    name: e.title,
-                                    description: e.description,
-                                    amount: '-\$${e.amount.toStringAsFixed(2)}',
-                                  ),
-                                )),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 32),
-                        Column(
-                          children: [
-                            _WebActionButton(
+                  Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 500),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: _WebActionButton(
                               label: 'Add expense',
                               icon: Icons.account_balance_wallet,
                               onTap: () {
                                 AnalyticsService.startSession();
+                                AnalyticsService.logButtonClick('add_expense', AnalyticsService.screenHome);
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(builder: (_) => const NewExpenseScreen()),
                                 );
                               },
                             ),
-                            const SizedBox(height: 12),
-                            _WebActionButton(label: 'Add income',  icon: Icons.savings, onTap: () {}),
-                          ],
-                        ),
-                      ],
+                          ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: _WebActionButton(label: 'Add income', icon: Icons.savings, onTap: () {}),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 28),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('Recent transactions',
+                              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87)),
+                          const SizedBox(height: 14),
+                          if (recent.isEmpty)
+                            const Center(
+                              child: Padding(
+                                padding: EdgeInsets.symmetric(vertical: 32),
+                                child: Text('No expenses yet.\nTap "Add expense" to get started!',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(color: Colors.black45, fontSize: 14)),
+                              ),
+                            )
+                          else
+                            ...recent.map((e) => Padding(
+                              padding: const EdgeInsets.only(bottom: 12),
+                              child: _WebTransactionCard(
+                                name: e.title,
+                                description: e.description,
+                                amount: '-\$${e.amount.toStringAsFixed(2)}',
+                              ),
+                            )),
+                        ],
+                      ),
                     ),
                   ),
                 ],
@@ -368,14 +380,14 @@ class _MobileActionButton extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 28),
+        padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 24),
         decoration: BoxDecoration(color: const Color(0xFF1A73E8), borderRadius: BorderRadius.circular(16)),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, color: Colors.white, size: 36),
-            const SizedBox(height: 10),
-            Text(label, style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600)),
+            Icon(icon, color: Colors.white, size: 28),
+            const SizedBox(width: 12),
+            Text(label, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600)),
           ],
         ),
       ),
@@ -441,11 +453,11 @@ class _WebActionButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return ElevatedButton.icon(
       onPressed: onTap,
-      icon: Icon(icon, size: 20, color: Colors.white),
-      label: Text(label, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Colors.white)),
+      icon: Icon(icon, size: 24, color: Colors.white),
+      label: Text(label, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: Colors.white)),
       style: ElevatedButton.styleFrom(
         backgroundColor: const Color(0xFF1A73E8),
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+        padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 18),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         elevation: 0,
       ),
