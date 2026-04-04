@@ -131,11 +131,10 @@ class _MobileHomeLayout extends StatelessWidget {
               const SizedBox(height: 28),
               Center(
                 child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 400),
-                  child: Column(
+                  constraints: const BoxConstraints(maxWidth: 500),
+                  child: Row(
                     children: [
-                      SizedBox(
-                        width: double.infinity,
+                      Expanded(
                         child: _MobileActionButton(
                           label: 'Add expense',
                           icon: Icons.account_balance_wallet,
@@ -149,9 +148,8 @@ class _MobileHomeLayout extends StatelessWidget {
                           },
                         ),
                       ),
-                      const SizedBox(height: 14),
-                      SizedBox(
-                        width: double.infinity,
+                      const SizedBox(width: 14),
+                      Expanded(
                         child: _MobileActionButton(label: 'Add income', icon: Icons.savings, onTap: () {}),
                       ),
                     ],
@@ -229,10 +227,9 @@ class _WebHomeLayout extends StatelessWidget {
                   Center(
                     child: ConstrainedBox(
                       constraints: const BoxConstraints(maxWidth: 500),
-                      child: Column(
+                      child: Row(
                         children: [
-                          SizedBox(
-                            width: double.infinity,
+                          Expanded(
                             child: _WebActionButton(
                               label: 'Add expense',
                               icon: Icons.account_balance_wallet,
@@ -246,9 +243,8 @@ class _WebHomeLayout extends StatelessWidget {
                               },
                             ),
                           ),
-                          const SizedBox(height: 14),
-                          SizedBox(
-                            width: double.infinity,
+                          const SizedBox(width: 14),
+                          Expanded(
                             child: _WebActionButton(label: 'Add income', icon: Icons.savings, onTap: () {}),
                           ),
                         ],
