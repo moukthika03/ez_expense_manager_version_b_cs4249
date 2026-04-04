@@ -1,8 +1,20 @@
 import 'package:flutter/material.dart';
 import '../services/flow_state_service.dart';
+import '../services/analytics_service.dart';
 
-class ExpenseAddedScreen extends StatelessWidget {
+class ExpenseAddedScreen extends StatefulWidget {
   const ExpenseAddedScreen({super.key});
+
+  @override
+  State<ExpenseAddedScreen> createState() => _ExpenseAddedScreenState();
+}
+
+class _ExpenseAddedScreenState extends State<ExpenseAddedScreen> {
+  @override
+  void initState() {
+    super.initState();
+    AnalyticsService.logScreenView(AnalyticsService.screenExpenseAdded);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -53,6 +65,7 @@ class ExpenseAddedScreen extends StatelessWidget {
                     width: double.infinity,
                     child: ElevatedButton(
                       onPressed: () {
+                        AnalyticsService.logBackToHome(AnalyticsService.screenExpenseAdded);
                         // Flow is complete — remove persisted session state so a
                         // refresh after this point starts a fresh flow.
                         FlowStateService.clear();

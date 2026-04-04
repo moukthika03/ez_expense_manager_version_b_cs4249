@@ -22,6 +22,12 @@ class _ChooseCategoryScreenState extends State<ChooseCategoryScreen> {
     'Utilities', 'Furniture', 'Shopping', 'Travel', 'Entertainment',
   ];
 
+  @override
+  void initState() {
+    super.initState();
+    AnalyticsService.logScreenView(AnalyticsService.screenChooseCategory);
+  }
+
   List<Map<String, String>> get _categories {
     String monthTotal(String category) {
       final total = ExpenseService.totalThisMonthByCategory(category.toLowerCase());
@@ -78,7 +84,15 @@ class _ChooseCategoryScreenState extends State<ChooseCategoryScreen> {
                         ),
                       );
                     }).toList(),
-                    onChanged: (value) => setState(() => _selectedCategory = value),
+                    onTap: () {
+                      AnalyticsService.logCategoryClicked(AnalyticsService.screenChooseCategory);
+                    },
+                    onChanged: (value) {
+                      if (value != null) {
+                        AnalyticsService.logCategorySelected(value, AnalyticsService.screenChooseCategory);
+                      }
+                      setState(() => _selectedCategory = value);
+                    },
                     selectedItemBuilder: (BuildContext context) {
                       return _taskCategories.map<Widget>((String item) => Text(item)).toList();
                     },

@@ -11,7 +11,7 @@ void main() async {
   await ExpenseService.init();
 
   AnalyticsService.appVersion = 'B';
-  AnalyticsService.trialId = DateTime.now().millisecondsSinceEpoch.toString();
+  AnalyticsService.initParticipant();  // Set participant ID once on app start
 
   runApp(const MyApp());
 }

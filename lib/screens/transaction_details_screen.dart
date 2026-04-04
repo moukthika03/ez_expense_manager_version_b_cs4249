@@ -17,6 +17,10 @@ class TransactionDetailsScreen extends StatefulWidget {
 class _TransactionDetailsScreenState extends State<TransactionDetailsScreen> {
   final TextEditingController _payeeController = TextEditingController();
   final TextEditingController _descController  = TextEditingController();
+  final FocusNode _payeeFocusNode = FocusNode();
+  final FocusNode _descFocusNode = FocusNode();
+  bool _payeeFocusedOnce = false;
+  bool _descFocusedOnce = false;
 
   final List<Map<String, String>> _suggestions = [
     {'name': 'Netflix',   'subtitle': 'Entertainment'},
@@ -28,7 +32,33 @@ class _TransactionDetailsScreenState extends State<TransactionDetailsScreen> {
       _payeeController.text.isNotEmpty && _descController.text.isNotEmpty;
 
   @override
+  void initState() {
+    super.initState();
+    AnalyticsService.logScreenView(AnalyticsService.screenTransactionDetails);
+    _payeeFocusNode.addListener(_onPayeeFocusChange);
+    _descFocusNode.addListener(_onDescFocusChange);
+  }
+
+  void _onPayeeFocusChange() {
+    if (_payeeFocusNode.hasFocus && !_payeeFocusedOnce) {
+      _payeeFocusedOnce = true;
+      AnalyticsService.logPayeeClicked(AnalyticsService.screenTransactionDetails);
+    }
+  }
+
+  void _onDescFocusChange() {
+    if (_descFocusNode.hasFocus && !_descFocusedOnce) {
+      _descFocusedOnce = true;
+      AnalyticsService.logDescriptionClicked(AnalyticsService.screenTransactionDetails);
+    }
+  }
+
+  @override
   void dispose() {
+    _payeeFocusNode.removeListener(_onPayeeFocusChange);
+    _descFocusNode.removeListener(_onDescFocusChange);
+    _payeeFocusNode.dispose();
+    _descFocusNode.dispose();
     _payeeController.dispose();
     _descController.dispose();
     super.dispose();
@@ -62,6 +92,7 @@ class _TransactionDetailsScreenState extends State<TransactionDetailsScreen> {
                     decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(12)),
                     child: TextField(
                       controller: _payeeController,
+                      focusNode: _payeeFocusNode,
                       decoration: const InputDecoration(
                         hintText: 'E.g. Youtube Premium',
                         hintStyle: TextStyle(color: Color(0xFFAAAAAA), fontSize: 16),
@@ -92,7 +123,11 @@ class _TransactionDetailsScreenState extends State<TransactionDetailsScreen> {
                             children: [
                               if (i > 0) const Divider(height: 1, color: Color(0xFFEEEEEE)),
                               InkWell(
-                                onTap: () { _payeeController.text = s['name']!; setState(() {}); },
+                                onTap: () {
+                                  AnalyticsService.logPayeeSuggestionSelected(s['name']!, AnalyticsService.screenTransactionDetails);
+                                  _payeeController.text = s['name']!;
+                                  setState(() {});
+                                },
                                 child: Padding(
                                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                                   child: Row(
@@ -134,6 +169,7 @@ class _TransactionDetailsScreenState extends State<TransactionDetailsScreen> {
                     decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(12)),
                     child: TextField(
                       controller: _descController,
+                      focusNode: _descFocusNode,
                       maxLines: 2,
                       decoration: const InputDecoration(
                         hintText: 'for my monthly subscription payment',
@@ -161,6 +197,8 @@ class _TransactionDetailsScreenState extends State<TransactionDetailsScreen> {
                       ForwardNavButton(
                         onTap: _canProceed
                             ? () {
+                          AnalyticsService.logPayeeEntered(_payeeController.text, AnalyticsService.screenTransactionDetails);
+                          AnalyticsService.logDescriptionEntered(_descController.text, AnalyticsService.screenTransactionDetails);
                           AnalyticsService.logTransition(
                             fromScreen: AnalyticsService.screenTransactionDetails,
                             destination: AnalyticsService.screenPaymentMethod,
