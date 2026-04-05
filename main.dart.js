@@ -42413,7 +42413,7 @@ if(o<p){j=i.vs(o)
 if(r.$2(a,j)>0){s[b]=j
 b=o}}s[b]=a}}
 A.LD.prototype={
-L(a){return new A.zD(B.Fm,"EZ Expense Manager",A.v2(null,null,B.av,!0),!1,null)}}
+L(a){return new A.zD(B.Fm,"Expense Manager Version B",A.v2(null,null,B.av,!0),!1,null)}}
 A.dY.prototype={}
 A.JN.prototype={
 l8(a,b){var s,r,q,p,o,n="Not enough bytes available.",m=b.f,l=m+1
