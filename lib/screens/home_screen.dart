@@ -23,8 +23,6 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    // After the first frame, check whether the user was mid-flow before
-    // the last browser refresh and, if so, navigate them back there.
     WidgetsBinding.instance.addPostFrameCallback((_) => _maybeResume());
   }
 
