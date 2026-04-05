@@ -1,11 +1,17 @@
 // ignore: avoid_web_libraries_in_flutter
 import 'dart:js' as js;
 import 'dart:async';
+import 'dart:io' show Platform;
+
+import 'package:flutter/foundation.dart';
+import 'device_detector_stub.dart'
+    if (dart.library.html) 'device_detector_web.dart';
+
 
 class AnalyticsService {
   // Google Apps Script web app URL (doGet endpoint)
   static const String _webAppUrl =
-      'https://script.google.com/macros/s/AKfycbyM2YZh_4b1ida-DxGKSHmHDG8mgUslYT_Nms54GP9dUmiTRudMt6syyH8rruROD2QO3w/exec';
+      'https://script.google.com/macros/s/AKfycbxMo7GYJpl-nuJIL1qt-nVV-8F1UxH3pC3MUhL4B8Z-VILOMzbrHEr6Nbp3ZqXKcaxuAw/exec';
 
   // Screen names
   static const String screenHome               = 'HomeScreen';
@@ -18,7 +24,9 @@ class AnalyticsService {
 
   static String appVersion = '1.0.0';
   static String trialId    = '';
-
+  // Device info
+  static String _device = '';
+  static String _platform = '';
   static String _sessionId = '';  // Participant ID - set once on app init
   static bool _sessionInitialized = false;
   static String _currentScreen = '';
@@ -27,6 +35,57 @@ class AnalyticsService {
   
   // Async queue - each event waits for previous to complete
   static Future<void> _lastEvent = Future.value();
+
+  // Detect device type and platform
+  static void _detectDevice() {
+    if (kIsWeb) {
+      _platform = 'web';
+      final screenWidth = getScreenWidth();
+      if (screenWidth < 768) {
+        _device = 'mobile';
+      } else if (screenWidth < 1024) {
+        _device = 'tablet';
+      } else {
+        _device = 'desktop';
+      }
+    } else if (Platform.isAndroid) {
+      _platform = 'android';
+      _device = 'mobile';
+    } else if (Platform.isIOS) {
+      _platform = 'ios';
+      _device = 'mobile';
+    } else if (Platform.isMacOS) {
+      _platform = 'macos';
+      _device = 'desktop';
+    } else if (Platform.isWindows) {
+      _platform = 'windows';
+      _device = 'desktop';
+    } else if (Platform.isLinux) {
+      _platform = 'linux';
+      _device = 'desktop';
+    } else {
+      _platform = 'unknown';
+      _device = 'unknown';
+    }
+    // ignore: avoid_print
+    print('[Analytics] Device detected: $_device ($_platform)');
+  }
+  
+  /// Set device type based on screen width (call from widget with context)
+  static void setDeviceFromScreenWidth(double screenWidth) {
+    if (kIsWeb) {
+      if (screenWidth < 768) {
+        _device = 'mobile';
+      } else if (screenWidth < 1024) {
+        _device = 'tablet';
+      } else {
+        _device = 'desktop';
+      }
+      if (kDebugMode) {
+        print('📊 Device detected: $_device (width: $screenWidth)');
+      }
+    }
+  }
 
   /// Initialize participant ID (call once on app start)
   static void initParticipant() {
@@ -45,6 +104,8 @@ class AnalyticsService {
     _currentScreen = screenHome;  // Start from HomeScreen
     _screenEnteredAt = DateTime.now();
     _clickCountOnScreen = 0;
+     _detectDevice();
+
     _lastEvent = Future.value();
     // ignore: avoid_print
     print('[Analytics] startSession — sessionId=$_sessionId, trialId=$trialId');
@@ -294,6 +355,7 @@ class AnalyticsService {
       'destination': destination,
       'time_on_screen_seconds': timeOnScreenSeconds?.toStringAsFixed(2) ?? '',
       'click_count': clickCount?.toString() ?? '',
+      'device': _device,
     };
 
     // Build query string for GET request
