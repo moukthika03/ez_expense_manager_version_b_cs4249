@@ -159,13 +159,26 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                       if (_selectedMethod != null)
                         ElevatedButton(
                           onPressed: () async {
-                            AnalyticsService.logConfirmClicked(AnalyticsService.screenPaymentMethod);
                             AnalyticsService.logTransition(
                               fromScreen: AnalyticsService.screenPaymentMethod,
                               destination: AnalyticsService.screenExpenseAdded,
                               navButtonId: 'confirm',
                             );
-                            AnalyticsService.logCompleted();
+                            final selectedPayment = _selectedMethod == 'electronic'
+                                ? 'Electronic transfer'
+                                : _selectedMethod == 'card'
+                                    ? 'Credit/debit card'
+                                    : _selectedMethod == 'other'
+                                        ? 'Other'
+                                        : (_selectedMethod ?? '');
+                            AnalyticsService.logConfirmClicked(
+                              fromScreen: AnalyticsService.screenPaymentMethod,
+                              amount: widget.amount,
+                              category: widget.category,
+                              description: widget.description,
+                              paymentMethod: selectedPayment,
+                            );
+                            await AnalyticsService.flushEvents();
 
                             await ExpenseService.addExpense(
                               ExpenseModel(
