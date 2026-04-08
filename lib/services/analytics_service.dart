@@ -1,9 +1,10 @@
-// ignore: avoid_web_libraries_in_flutter
+// ignore_for_file: avoid_web_libraries_in_flutter, deprecated_member_use
 import 'dart:js' as js;
 import 'dart:async';
 import 'dart:io' show Platform;
 
 import 'package:flutter/foundation.dart';
+import 'package:firebase_analytics/firebase_analytics.dart';
 import 'device_detector_stub.dart'
     if (dart.library.html) 'device_detector_web.dart';
 
@@ -12,6 +13,9 @@ class AnalyticsService {
   // Google Apps Script web app URL (doGet endpoint)
   static const String _webAppUrl =
       'https://script.google.com/macros/s/AKfycbxMo7GYJpl-nuJIL1qt-nVV-8F1UxH3pC3MUhL4B8Z-VILOMzbrHEr6Nbp3ZqXKcaxuAw/exec';
+
+  // Firebase Analytics instance
+  static final FirebaseAnalytics _firebaseAnalytics = FirebaseAnalytics.instance;
 
   // Screen names
   static const String screenHome               = 'HomeScreen';
@@ -95,6 +99,50 @@ class AnalyticsService {
       _sessionInitialized = true;
       // ignore: avoid_print
       print('[Analytics] initParticipant — sessionId=$_sessionId');
+    }
+  }
+
+  /// Enable Firebase Analytics Debug Mode (for development/testing)
+  /// This allows you to see events in real-time in Firebase Console DebugView
+  static Future<void> enableDebugMode() async {
+    try {
+      // Enable analytics collection
+      await _firebaseAnalytics.setAnalyticsCollectionEnabled(true);
+      
+
+      // ignore: avoid_print
+      print('[Firebase Analytics] ✅ Debug mode enabled!');
+      print('[Firebase Analytics] Session ID: $_sessionId');
+      print('[Firebase Analytics] To see events:');
+      print('[Firebase Analytics] 1. Go to: https://console.firebase.google.com/');
+      print('[Firebase Analytics] 2. Select your project');
+      print('[Firebase Analytics] 3. Go to: Analytics > DebugView');
+      print('[Firebase Analytics] 4. Events should appear in real-time');
+    } catch (e) {
+      // ignore: avoid_print
+      print('[Firebase Analytics] ❌ Error enabling debug mode: $e');
+    }
+  }
+
+  /// Check Firebase Analytics status and connectivity (for debugging)
+  static Future<void> checkFirebaseStatus() async {
+    try {
+      // ignore: avoid_print
+      print('\n========== Firebase Analytics Status ==========');
+      print('📱 Session ID: $_sessionId');
+      print('🔄 Trial ID: $trialId');
+      print('📊 Device: $_device ($_platform)');
+      print('✅ Analytics collection should be enabled');
+      print('\n📝 What to check:');
+      print('1. Open Firebase Console → Analytics → DebugView');
+      print('2. Look for device with session ID: $_sessionId');
+      print('3. Perform an action (tap button, navigate screen)');
+      print('4. Check if event appears in real-time');
+      print('\n🔗 Direct link: https://console.firebase.google.com/');
+      print('============================================\n');
+    } catch (e) {
+      // ignore: avoid_print
+      print('[Firebase Analytics] Error checking status: $e');
     }
   }
 
@@ -380,7 +428,7 @@ class AnalyticsService {
     );
   }
 
-  /// Send event to Google Apps Script via GET request
+   /// Send event to Google Apps Script via GET request AND Firebase Analytics
   static void _sendEvent({
     required String event,
     String data = '',
@@ -421,6 +469,7 @@ class AnalyticsService {
       // ignore: avoid_print
       print('[Analytics] Sending event: $event');
 
+      // Send to Google Sheets
       js.context.callMethod('fetch', [
         url,
         js.JsObject.jsify({
@@ -428,10 +477,73 @@ class AnalyticsService {
           'mode': 'no-cors',
         }),
       ]);
+
+      // Send to Firebase Analytics
+      _logToFirebase(
+        event: event,
+        data: data,
+        fromScreen: fromScreen,
+        destination: destination,
+        timeOnScreenSeconds: timeOnScreenSeconds,
+        totalSessionSeconds: totalSessionSeconds,
+        clickCount: clickCount,
+      );
     }).catchError((Object error) {
       // ignore: avoid_print
       print('[Analytics] Failed event: $event — $error');
     });
+  }
+
+  /// Log event to Firebase Analytics
+  static Future<void> _logToFirebase({
+    required String event,
+    String data = '',
+    String fromScreen = '',
+    String destination = '',
+    double? timeOnScreenSeconds,
+    double? totalSessionSeconds,
+    int? clickCount,
+  }) async {
+    try {
+      final Map<String, Object> firebaseParams = {
+        'session_id': _sessionId,
+        'trial_id': trialId,
+        'device': _device,
+      };
+
+      // Add optional parameters if they have values
+      if (data.isNotEmpty) {
+        firebaseParams['data'] = data;
+      }
+      if (fromScreen.isNotEmpty) {
+        firebaseParams['from_screen'] = fromScreen;
+      }
+      if (destination.isNotEmpty) {
+        firebaseParams['destination'] = destination;
+      }
+      if (timeOnScreenSeconds != null) {
+        firebaseParams['time_on_screen_seconds'] = timeOnScreenSeconds;
+      }
+      if (totalSessionSeconds != null) {
+        firebaseParams['total_session_seconds'] = totalSessionSeconds;
+      }
+      if (clickCount != null) {
+        firebaseParams['click_count'] = clickCount;
+      }
+
+      // Log to Firebase Analytics
+      await _firebaseAnalytics.logEvent(
+        name: event,
+        parameters: firebaseParams,
+      );
+
+      // ignore: avoid_print
+      print('[Firebase Analytics] ✅ Event logged: $event | Params: $firebaseParams');
+    } catch (e) {
+      // ignore: avoid_print
+      print('[Firebase Analytics] ❌ Error logging event "$event": $e');
+      print('[Firebase Analytics] Stack trace: ${StackTrace.current}');
+    }
   }
 
   /// Wait until all queued analytics events are sent.
