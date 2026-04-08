@@ -27,9 +27,8 @@ class _TransactionDetailsScreenState extends State<TransactionDetailsScreen> {
     {'name': 'Starbucks', 'subtitle': 'Food & Beverage'},
   ];
 
-  // Forward is enabled only when BOTH payee and description are filled in.
-  bool get _canProceed =>
-      _payeeController.text.isNotEmpty && _descController.text.isNotEmpty;
+  // Description is required; payee is now optional.
+  bool get _canProceed => _descController.text.isNotEmpty;
 
   @override
   void initState() {
@@ -85,8 +84,48 @@ class _TransactionDetailsScreenState extends State<TransactionDetailsScreen> {
                   const StepProgressBar(value: 0.72),
                   const SizedBox(height: 32),
 
-                  const Text('Payee Name',
-                      style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: Colors.black87)),
+                  // ── Description (required — shown first) ──────────────────
+                  RichText(
+                    text: const TextSpan(
+                      style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: Colors.black87),
+                      children: [
+                        TextSpan(text: 'Description of expense'),
+                        TextSpan(
+                          text: ' *',
+                          style: TextStyle(color: Colors.red, fontSize: 17, fontWeight: FontWeight.bold),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Container(
+                    decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(12)),
+                    child: TextField(
+                      controller: _descController,
+                      focusNode: _descFocusNode,
+                      maxLines: 2,
+                      decoration: const InputDecoration(
+                        hintText: 'e.g. monthly subscription payment',
+                        hintStyle: TextStyle(color: Color(0xFFAAAAAA), fontSize: 15),
+                        contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                        border: InputBorder.none,
+                      ),
+                      onChanged: (_) => setState(() {}),
+                    ),
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  // ── Payee Name (optional) ─────────────────────────────────
+                  Row(
+                    children: const [
+                      Text('Payee Name',
+                          style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: Colors.black87)),
+                      SizedBox(width: 8),
+                      Text('(optional)',
+                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.normal, color: Colors.black45)),
+                    ],
+                  ),
                   const SizedBox(height: 10),
                   Container(
                     decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(12)),
@@ -114,7 +153,7 @@ class _TransactionDetailsScreenState extends State<TransactionDetailsScreen> {
                       children: [
                         const Padding(
                           padding: EdgeInsets.fromLTRB(16, 12, 16, 4),
-                          child: Text('Most recent', style: TextStyle(fontSize: 13, color: Color(0xFFAAAAAA))),
+                          child: Text('Popular payees', style: TextStyle(fontSize: 13, color: Color(0xFFAAAAAA))),
                         ),
                         ..._suggestions.asMap().entries.map((entry) {
                           final i = entry.key;
@@ -157,28 +196,6 @@ class _TransactionDetailsScreenState extends State<TransactionDetailsScreen> {
                           );
                         }),
                       ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 24),
-                  // Description is required — label reflects this.
-                  const Text('Description of expense',
-                      style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: Colors.black87)),
-                  const SizedBox(height: 10),
-                  Container(
-                    decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(12)),
-                    child: TextField(
-                      controller: _descController,
-                      focusNode: _descFocusNode,
-                      maxLines: 2,
-                      decoration: const InputDecoration(
-                        hintText: 'for my monthly subscription payment',
-                        hintStyle: TextStyle(color: Color(0xFFAAAAAA), fontSize: 15),
-                        contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                        border: InputBorder.none,
-                      ),
-                      // Rebuild so the forward button reacts immediately.
-                      onChanged: (_) => setState(() {}),
                     ),
                   ),
 

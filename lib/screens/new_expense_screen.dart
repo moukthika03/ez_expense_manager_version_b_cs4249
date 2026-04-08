@@ -52,7 +52,8 @@ class _NewExpenseScreenState extends State<NewExpenseScreen> {
                   Column(
                     children: [
                       OptionButton(
-                        label: 'Unlogged Expenses',
+                        label: 'Quick Log with Receipt Image',
+
                         isSelected: _selected == 'unlogged',
                         onTap: () {
                           AnalyticsService.logExpenseTypeSelected('unlogged', AnalyticsService.screenNewExpense);

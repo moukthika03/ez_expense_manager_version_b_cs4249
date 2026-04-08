@@ -127,32 +127,28 @@ class _MobileHomeLayout extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 28),
-              Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 500),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: _MobileActionButton(
-                          label: 'Add expense',
-                          icon: Icons.account_balance_wallet,
-                          onTap: () {
-                            AnalyticsService.startSession();
-                            AnalyticsService.logButtonClick('add_expense', AnalyticsService.screenHome);
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(builder: (_) => const NewExpenseScreen()),
-                            );
-                          },
-                        ),
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: _MobileActionButton(label: 'Add income', icon: Icons.savings, onTap: () {}),
-                      ),
-                    ],
+              // ── Action buttons (mobile) ──
+              Row(
+                children: [
+                  Expanded(
+                    child: _MobileActionButton(label: 'Add income', icon: Icons.savings, onTap: () {}),
                   ),
-                ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: _MobileActionButton(
+                      label: 'Add expense',
+                      icon: Icons.account_balance_wallet,
+                      onTap: () {
+                        AnalyticsService.startSession();
+                        AnalyticsService.logButtonClick('add_expense', AnalyticsService.screenHome);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const NewExpenseScreen()),
+                        );
+                      },
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 28),
               const Text('Recent transactions',
@@ -210,6 +206,7 @@ class _WebHomeLayout extends StatelessWidget {
                   const Text('Hey there!',
                       style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.black87)),
                   const SizedBox(height: 28),
+                  // ── Summary cards ──
                   Row(
                     children: [
                       _WebSummaryCard(label: 'Today',      amount: ExpenseService.totalToday(),     icon: Icons.today,          color: const Color(0xFF1A73E8)),
@@ -222,32 +219,28 @@ class _WebHomeLayout extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 28),
-                  Center(
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 500),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: _WebActionButton(
-                              label: 'Add expense',
-                              icon: Icons.account_balance_wallet,
-                              onTap: () {
-                                AnalyticsService.startSession();
-                                AnalyticsService.logButtonClick('add_expense', AnalyticsService.screenHome);
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(builder: (_) => const NewExpenseScreen()),
-                                );
-                              },
-                            ),
-                          ),
-                          const SizedBox(width: 14),
-                          Expanded(
-                            child: _WebActionButton(label: 'Add income', icon: Icons.savings, onTap: () {}),
-                          ),
-                        ],
+                  // ── Action buttons (web): full-width, Income left / Expense right ──
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _WebActionButton(label: 'Add income', icon: Icons.savings, onTap: () {}),
                       ),
-                    ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: _WebActionButton(
+                          label: 'Add expense',
+                          icon: Icons.account_balance_wallet,
+                          onTap: () {
+                            AnalyticsService.startSession();
+                            AnalyticsService.logButtonClick('add_expense', AnalyticsService.screenHome);
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (_) => const NewExpenseScreen()),
+                            );
+                          },
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 28),
                   Expanded(
@@ -364,7 +357,7 @@ class _WebSummaryCard extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────
-// Mobile action button
+// Mobile action button — smaller text/icon to prevent overflow
 // ─────────────────────────────────────────────
 class _MobileActionButton extends StatelessWidget {
   final String label;
@@ -378,14 +371,21 @@ class _MobileActionButton extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 24),
+        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
         decoration: BoxDecoration(color: const Color(0xFF1A73E8), borderRadius: BorderRadius.circular(16)),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, color: Colors.white, size: 28),
-            const SizedBox(width: 12),
-            Text(label, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600)),
+            Icon(icon, color: Colors.white, size: 20),
+            const SizedBox(width: 8),
+            Flexible(
+              child: Text(
+                label,
+                style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
           ],
         ),
       ),
@@ -509,9 +509,6 @@ class _WebTransactionCard extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────
-// Helper: pick avatar colour by category
-// ─────────────────────────────────────────────
 Color _categoryColor(String category) {
   switch (category.toLowerCase()) {
     case 'food':      return const Color(0xFF00897B);
