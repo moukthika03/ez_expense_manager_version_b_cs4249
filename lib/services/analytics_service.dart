@@ -29,6 +29,7 @@ class AnalyticsService {
   static String _platform = '';
   static String _sessionId = '';  // Participant ID - set once on app init
   static bool _sessionInitialized = false;
+  static DateTime? _sessionStartedAt;
   static String _currentScreen = '';
   static DateTime? _screenEnteredAt;
   static int _clickCountOnScreen = 0;
@@ -101,6 +102,7 @@ class AnalyticsService {
   static void startSession() {
     initParticipant();  // Ensure participant ID exists
     trialId = _generateTrialId();
+    _sessionStartedAt = DateTime.now();
     _currentScreen = screenHome;  // Start from HomeScreen
     _screenEnteredAt = DateTime.now();
     _clickCountOnScreen = 0;
@@ -122,13 +124,14 @@ class AnalyticsService {
     final prevScreenTimeMs = _screenEnteredAt != null
         ? DateTime.now().difference(_screenEnteredAt!).inMilliseconds
         : 0;
+    final prevScreenTimeSeconds = prevScreenTimeMs / 1000.0;
 
     _sendEvent(
       event: 'screen_view',
-      data: 'prev_screen_time_ms:$prevScreenTimeMs',
+      data: 'prev_screen_time_seconds:${prevScreenTimeSeconds.toStringAsFixed(2)}',
       fromScreen: _currentScreen,
       destination: screenName,
-      timeOnScreenSeconds: prevScreenTimeMs / 1000.0,
+      timeOnScreenSeconds: prevScreenTimeSeconds,
       clickCount: _clickCountOnScreen,
     );
 
@@ -272,23 +275,66 @@ class AnalyticsService {
     );
   }
 
-  /// Log confirm button click
-  static void logConfirmClicked(String fromScreen) {
+  /// Log final expense submission
+  static void logConfirmClicked({
+    required String fromScreen,
+    required String amount,
+    required String category,
+    required String description,
+    required String paymentMethod,
+  }) {
     _clickCountOnScreen++;
+
+    final now = DateTime.now();
+    final date =
+        '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+    final totalSessionSeconds = _sessionStartedAt != null
+        ? DateTime.now().difference(_sessionStartedAt!).inMilliseconds / 1000.0
+        : 0.0;
+
+    final payload =
+        'amount:$amount|category:$category|desc:$description|payment:$paymentMethod|date:$date|total_time:${totalSessionSeconds.toStringAsFixed(2)}';
+
+    // ignore: avoid_print
+    print('[Analytics] expense_logged payload: $payload');
+
     _sendEvent(
-      event: 'confirm_clicked',
+      event: 'expense_logged',
+      data: payload,
       fromScreen: fromScreen,
+      totalSessionSeconds: totalSessionSeconds,
+      clickCount: _clickCountOnScreen,
     );
   }
 
   /// Log task completion
-  static void logCompleted() {
+  static void logCompleted({
+    String category = '',
+    String amount = '',
+    String payee = '',
+    String description = '',
+    String paymentMethod = '',
+  }) {
+    final totalSessionSeconds = _sessionStartedAt != null
+        ? DateTime.now().difference(_sessionStartedAt!).inMilliseconds / 1000.0
+        : null;
+
+    final details = [
+      if (category.isNotEmpty) 'category:$category',
+      if (amount.isNotEmpty) 'amount:$amount',
+      if (payee.isNotEmpty) 'payee:$payee',
+      if (description.isNotEmpty) 'description:$description',
+      if (paymentMethod.isNotEmpty) 'payment_method:$paymentMethod',
+    ].join(',');
+
     _sendEvent(
-      event: 'new_expense_logged',
+      event: 'expense_logged',
+      data: details,
       fromScreen: _currentScreen,
+      totalSessionSeconds: totalSessionSeconds,
     );
     // ignore: avoid_print
-    print('[Analytics] logCompleted — new_expense_logged');
+    print('[Analytics] logCompleted — expense_logged (total_session_seconds=${totalSessionSeconds?.toStringAsFixed(2) ?? ''})');
   }
 
   /// Log task abandoned
@@ -341,6 +387,7 @@ class AnalyticsService {
     String fromScreen = '',
     String destination = '',
     double? timeOnScreenSeconds,
+    double? totalSessionSeconds,
     int? clickCount,
   }) {
     final timestamp = DateTime.now().toUtc().toIso8601String();
@@ -354,6 +401,7 @@ class AnalyticsService {
       'from_screen': fromScreen,
       'destination': destination,
       'time_on_screen_seconds': timeOnScreenSeconds?.toStringAsFixed(2) ?? '',
+      'total_session_seconds': totalSessionSeconds?.toStringAsFixed(2) ?? '',
       'click_count': clickCount?.toString() ?? '',
       'device': _device,
     };
@@ -372,7 +420,7 @@ class AnalyticsService {
     _lastEvent = _lastEvent.then((_) {
       // ignore: avoid_print
       print('[Analytics] Sending event: $event');
-      
+
       js.context.callMethod('fetch', [
         url,
         js.JsObject.jsify({
@@ -380,6 +428,12 @@ class AnalyticsService {
           'mode': 'no-cors',
         }),
       ]);
+    }).catchError((Object error) {
+      // ignore: avoid_print
+      print('[Analytics] Failed event: $event — $error');
     });
   }
+
+  /// Wait until all queued analytics events are sent.
+  static Future<void> flushEvents() => _lastEvent;
 }
