@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../models/expense_model.dart';
 import '../services/expense_service.dart';
-import 'new_expense_screen.dart';
 import 'choose_category_screen.dart';
 import 'amount_paid_screen.dart';
 import 'transaction_details_screen.dart';
@@ -141,9 +140,13 @@ class _MobileHomeLayout extends StatelessWidget {
                       onTap: () {
                         AnalyticsService.startSession();
                         AnalyticsService.logButtonClick('add_expense', AnalyticsService.screenHome);
+                        FlowStateService.save(
+                          step: FlowStateService.stepChooseCategory,
+                          data: {'expenseType': 'new'},
+                        );
                         Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (_) => const NewExpenseScreen()),
+                          MaterialPageRoute(builder: (_) => const ChooseCategoryScreen(expenseType: 'new')),
                         );
                       },
                     ),
@@ -233,9 +236,13 @@ class _WebHomeLayout extends StatelessWidget {
                           onTap: () {
                             AnalyticsService.startSession();
                             AnalyticsService.logButtonClick('add_expense', AnalyticsService.screenHome);
+                            FlowStateService.save(
+                              step: FlowStateService.stepChooseCategory,
+                              data: {'expenseType': 'new'},
+                            );
                             Navigator.push(
                               context,
-                              MaterialPageRoute(builder: (_) => const NewExpenseScreen()),
+                              MaterialPageRoute(builder: (_) => const ChooseCategoryScreen(expenseType: 'new')),
                             );
                           },
                         ),

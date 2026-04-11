@@ -1,111 +1,283 @@
 import 'package:flutter/material.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+import '../models/expense_model.dart';
+import '../services/expense_service.dart';
 import 'choose_category_screen.dart';
-import '../widgets/shared_widgets.dart';
+import 'amount_paid_screen.dart';
+import 'transaction_details_screen.dart';
+import 'payment_method_screen.dart';
 import '../services/analytics_service.dart';
 import '../services/flow_state_service.dart';
 
-class NewExpenseScreen extends StatefulWidget {
-  const NewExpenseScreen({super.key});
+class HomeScreen extends StatefulWidget {
+  const HomeScreen({super.key});
 
   @override
-  State<NewExpenseScreen> createState() => _NewExpenseScreenState();
+  State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _NewExpenseScreenState extends State<NewExpenseScreen> {
-  String? _selected;
+class _HomeScreenState extends State<HomeScreen> {
+  static const double _mobileBreakpoint = 600;
 
   @override
   void initState() {
     super.initState();
-    AnalyticsService.logScreenView(AnalyticsService.screenNewExpense);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _maybeResume());
+  }
+
+  void _maybeResume() {
+    final step = FlowStateService.savedStep;
+    if (step == null || !mounted) return;
+
+    final data = FlowStateService.savedData;
+
+    // Helper to safely extract a saved string.
+    String get(String key) => data[key] ?? '';
+
+    Widget? destination;
+    switch (step) {
+      case FlowStateService.stepChooseCategory:
+        destination = ChooseCategoryScreen(expenseType: get('expenseType'));
+        break;
+      case FlowStateService.stepAmountPaid:
+        destination = AmountPaidScreen(category: get('category'));
+        break;
+      case FlowStateService.stepTransactionDetails:
+        destination = TransactionDetailsScreen(
+          category: get('category'),
+          amount  : get('amount'),
+        );
+        break;
+      case FlowStateService.stepPaymentMethod:
+        destination = PaymentMethodScreen(
+          category   : get('category'),
+          amount     : get('amount'),
+          payee      : get('payee'),
+          description: get('description'),
+        );
+        break;
+    }
+
+    if (destination != null) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => destination!),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    return ValueListenableBuilder<Box<ExpenseModel>>(
+      valueListenable: ExpenseService.listenable(),
+      builder: (context, box, _) {
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            final isMobile = constraints.maxWidth < _mobileBreakpoint;
+            return isMobile
+                ? _MobileHomeLayout(box: box)
+                : _WebHomeLayout(box: box);
+          },
+        );
+      },
+    );
+  }
+}
+
+// ─────────────────────────────────────────────
+// MOBILE LAYOUT
+// ─────────────────────────────────────────────
+class _MobileHomeLayout extends StatelessWidget {
+  final Box<ExpenseModel> box;
+  const _MobileHomeLayout({required this.box});
+
+  @override
+  Widget build(BuildContext context) {
+    final recent = ExpenseService.getAll().take(5).toList();
+
+    return Scaffold(
+      backgroundColor: Colors.white,
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(20, 24, 20, 100),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Center(
+                child: Text('Hey there!',
+                    style: TextStyle(fontSize: 30, fontWeight: FontWeight.bold, color: Colors.black87)),
+              ),
+              const SizedBox(height: 24),
+              const Text('Expense summary',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87)),
+              const SizedBox(height: 14),
+              GridView.count(
+                crossAxisCount: 2,
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                mainAxisSpacing: 12,
+                crossAxisSpacing: 12,
+                childAspectRatio: 1.55,
+                children: [
+                  _SummaryCard(label: 'Today',      amount: ExpenseService.totalToday(),     icon: Icons.today,            color: const Color(0xFF1A73E8)),
+                  _SummaryCard(label: 'This week',  amount: ExpenseService.totalThisWeek(),  icon: Icons.date_range,       color: const Color(0xFF00897B)),
+                  _SummaryCard(label: 'This month', amount: ExpenseService.totalThisMonth(), icon: Icons.calendar_month,   color: const Color(0xFF7B1FA2)),
+                  _SummaryCard(label: 'This year',  amount: ExpenseService.totalThisYear(),  icon: Icons.bar_chart,        color: const Color(0xFFE65100)),
+                ],
+              ),
+              const SizedBox(height: 28),
+              // ── Action buttons (mobile) ──
+              Row(
+                children: [
+                  Expanded(
+                    child: _MobileActionButton(label: 'Add income', icon: Icons.savings, onTap: () {}),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: _MobileActionButton(
+                      label: 'Add expense',
+                      icon: Icons.account_balance_wallet,
+                      onTap: () {
+                        AnalyticsService.startSession();
+                        AnalyticsService.logButtonClick('add_expense', AnalyticsService.screenHome);
+                        FlowStateService.save(
+                          step: FlowStateService.stepChooseCategory,
+                          data: {'expenseType': 'new'},
+                        );
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const ChooseCategoryScreen(expenseType: 'new')),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 28),
+              const Text('Recent transactions',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87)),
+              const SizedBox(height: 14),
+              if (recent.isEmpty)
+                const Center(
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(vertical: 32),
+                    child: Text('No expenses yet.\nTap "Add expense" to get started!',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: Colors.black45, fontSize: 14)),
+                  ),
+                )
+              else
+                ...recent.map((e) => Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: _MobileTransactionCard(
+                    name: e.title,
+                    description: e.description,
+                    amount: '-\$${e.amount.toStringAsFixed(2)}',
+                    avatarColor: _categoryColor(e.category),
+                  ),
+                )),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────
+// WEB LAYOUT
+// ─────────────────────────────────────────────
+class _WebHomeLayout extends StatelessWidget {
+  final Box<ExpenseModel> box;
+  const _WebHomeLayout({required this.box});
+
+  @override
+  Widget build(BuildContext context) {
+    final recent = ExpenseService.getAll().take(5).toList();
+
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 700),
+            constraints: const BoxConstraints(maxWidth: 960),
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 24),
+              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  const Text(
-                    'New Expense',
-                    style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: Colors.black87),
-                  ),
-                  const SizedBox(height: 16),
-                  const StepProgressBar(value: 0.15),
-                  const SizedBox(height: 40),
-                  OptionButton(
-                    label: 'New Expense',
-                    isSelected: _selected == 'new',
-                    onTap: () {
-                      AnalyticsService.logExpenseTypeSelected('new', AnalyticsService.screenNewExpense);
-                      setState(() => _selected = 'new');
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                  Column(
+                  const Text('Hey there!',
+                      style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.black87)),
+                  const SizedBox(height: 28),
+                  // ── Summary cards ──
+                  Row(
                     children: [
-                      OptionButton(
-                        label: 'Quick Log with Receipt Image',
-
-                        isSelected: _selected == 'unlogged',
-                        onTap: () {
-                          AnalyticsService.logExpenseTypeSelected('unlogged', AnalyticsService.screenNewExpense);
-                          setState(() => _selected = 'unlogged');
-                        },
+                      _WebSummaryCard(label: 'Today',      amount: ExpenseService.totalToday(),     icon: Icons.today,          color: const Color(0xFF1A73E8)),
+                      const SizedBox(width: 16),
+                      _WebSummaryCard(label: 'This week',  amount: ExpenseService.totalThisWeek(),  icon: Icons.date_range,     color: const Color(0xFF00897B)),
+                      const SizedBox(width: 16),
+                      _WebSummaryCard(label: 'This month', amount: ExpenseService.totalThisMonth(), icon: Icons.calendar_month, color: const Color(0xFF7B1FA2)),
+                      const SizedBox(width: 16),
+                      _WebSummaryCard(label: 'This year',  amount: ExpenseService.totalThisYear(),  icon: Icons.bar_chart,      color: const Color(0xFFE65100)),
+                    ],
+                  ),
+                  const SizedBox(height: 28),
+                  // ── Action buttons (web): full-width, Income left / Expense right ──
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _WebActionButton(label: 'Add income', icon: Icons.savings, onTap: () {}),
                       ),
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: const BorderRadius.only(
-                            bottomLeft: Radius.circular(14),
-                            bottomRight: Radius.circular(14),
-                          ),
-                          boxShadow: [
-                            BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 8, offset: const Offset(0, 4)),
-                          ],
-                        ),
-                        child: Container(
-                          height: 100,
-                          width: 100,
-                          decoration: BoxDecoration(color: Colors.grey.shade200, borderRadius: BorderRadius.circular(10)),
-                          child: const Icon(Icons.receipt_long, color: Colors.grey, size: 40),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: _WebActionButton(
+                          label: 'Add expense',
+                          icon: Icons.account_balance_wallet,
+                          onTap: () {
+                            AnalyticsService.startSession();
+                            AnalyticsService.logButtonClick('add_expense', AnalyticsService.screenHome);
+                            FlowStateService.save(
+                              step: FlowStateService.stepChooseCategory,
+                              data: {'expenseType': 'new'},
+                            );
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (_) => const ChooseCategoryScreen(expenseType: 'new')),
+                            );
+                          },
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 32),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: ForwardNavButton(
-                      onTap: _selected != null
-                          ? () {
-                        AnalyticsService.logTransition(
-                          fromScreen: AnalyticsService.screenNewExpense,
-                          destination: AnalyticsService.screenChooseCategory,
-                          navButtonId: 'forward',
-                        );
-                        // Persist progress so a refresh can resume here.
-                        FlowStateService.save(
-                          step: FlowStateService.stepChooseCategory,
-                          data: {'expenseType': _selected!},
-                        );
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => ChooseCategoryScreen(expenseType: _selected!),
-                          ),
-                        );
-                      }
-                          : null,
+                  const SizedBox(height: 28),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('Recent transactions',
+                              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87)),
+                          const SizedBox(height: 14),
+                          if (recent.isEmpty)
+                            const Center(
+                              child: Padding(
+                                padding: EdgeInsets.symmetric(vertical: 32),
+                                child: Text('No expenses yet.\nTap "Add expense" to get started!',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(color: Colors.black45, fontSize: 14)),
+                              ),
+                            )
+                          else
+                            ...recent.map((e) => Padding(
+                              padding: const EdgeInsets.only(bottom: 12),
+                              child: _WebTransactionCard(
+                                name: e.title,
+                                description: e.description,
+                                amount: '-\$${e.amount.toStringAsFixed(2)}',
+                              ),
+                            )),
+                        ],
+                      ),
                     ),
                   ),
                 ],
@@ -115,5 +287,240 @@ class _NewExpenseScreenState extends State<NewExpenseScreen> {
         ),
       ),
     );
+  }
+}
+
+// ─────────────────────────────────────────────
+// Summary card (mobile)
+// ─────────────────────────────────────────────
+class _SummaryCard extends StatelessWidget {
+  final String label;
+  final double amount;
+  final IconData icon;
+  final Color color;
+
+  const _SummaryCard({required this.label, required this.amount, required this.icon, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Icon(icon, color: color, size: 22),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('-\$${amount.toStringAsFixed(2)}',
+                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: color)),
+              Text(label, style: const TextStyle(fontSize: 12, color: Colors.black54)),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────
+// Summary card (web)
+// ─────────────────────────────────────────────
+class _WebSummaryCard extends StatelessWidget {
+  final String label;
+  final double amount;
+  final IconData icon;
+  final Color color;
+
+  const _WebSummaryCard({required this.label, required this.amount, required this.icon, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.08),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon, color: color, size: 22),
+            const SizedBox(height: 10),
+            Text('-\$${amount.toStringAsFixed(2)}',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: color)),
+            Text(label, style: const TextStyle(fontSize: 12, color: Colors.black54)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────
+// Mobile action button — smaller text/icon to prevent overflow
+// ─────────────────────────────────────────────
+class _MobileActionButton extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final VoidCallback onTap;
+
+  const _MobileActionButton({required this.label, required this.icon, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+        decoration: BoxDecoration(color: const Color(0xFF1A73E8), borderRadius: BorderRadius.circular(16)),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: Colors.white, size: 20),
+            const SizedBox(width: 8),
+            Flexible(
+              child: Text(
+                label,
+                style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────
+// Mobile transaction card
+// ─────────────────────────────────────────────
+class _MobileTransactionCard extends StatelessWidget {
+  final String name;
+  final String description;
+  final String amount;
+  final Color avatarColor;
+
+  const _MobileTransactionCard({required this.name, required this.description, required this.amount, required this.avatarColor});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      decoration: BoxDecoration(color: const Color(0xFF0D1117), borderRadius: BorderRadius.circular(16)),
+      child: Row(
+        children: [
+          Container(
+            width: 48, height: 48,
+            decoration: BoxDecoration(color: avatarColor, borderRadius: BorderRadius.circular(10)),
+            child: Center(
+              child: Text(name.isNotEmpty ? name[0].toUpperCase() : '?',
+                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                const SizedBox(height: 2),
+                Text(description, style: const TextStyle(color: Color(0xFF8A8FA8), fontSize: 13)),
+              ],
+            ),
+          ),
+          Text(amount, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 15)),
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────
+// Web action button
+// ─────────────────────────────────────────────
+class _WebActionButton extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final VoidCallback onTap;
+
+  const _WebActionButton({required this.label, required this.icon, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return ElevatedButton.icon(
+      onPressed: onTap,
+      icon: Icon(icon, size: 24, color: Colors.white),
+      label: Text(label, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: Colors.white)),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: const Color(0xFF1A73E8),
+        padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 18),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        elevation: 0,
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────
+// Web transaction card
+// ─────────────────────────────────────────────
+class _WebTransactionCard extends StatelessWidget {
+  final String name;
+  final String amount;
+  final String description;
+
+  const _WebTransactionCard({required this.name, required this.amount, required this.description});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFF1A73E8), width: 1.5),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 2))],
+      ),
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 20,
+            backgroundColor: Colors.grey.shade200,
+            child: Text(name.isNotEmpty ? name[0].toUpperCase() : '?',
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                const SizedBox(height: 2),
+                Text(description, style: const TextStyle(fontSize: 12, color: Colors.black45)),
+              ],
+            ),
+          ),
+          Text(amount, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.black87)),
+        ],
+      ),
+    );
+  }
+}
+
+Color _categoryColor(String category) {
+  switch (category.toLowerCase()) {
+    case 'food':      return const Color(0xFF00897B);
+    case 'transport': return const Color(0xFF1A73E8);
+    case 'shopping':  return const Color(0xFF7B1FA2);
+    default:          return const Color(0xFFE65100);
   }
 }
