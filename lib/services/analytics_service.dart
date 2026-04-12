@@ -5,16 +5,12 @@ import 'dart:io' show Platform;
 
 import 'package:flutter/foundation.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
-import 'device_detector_stub.dart'
-    if (dart.library.html) 'device_detector_web.dart';
-
+import 'device_detector_stub.dart' if (dart.library.html) 'device_detector_web.dart';
 
 class AnalyticsService {
-  // Google Apps Script web app URL (doGet endpoint)
   static const String _webAppUrl =
       'https://script.google.com/macros/s/AKfycbxMo7GYJpl-nuJIL1qt-nVV-8F1UxH3pC3MUhL4B8Z-VILOMzbrHEr6Nbp3ZqXKcaxuAw/exec';
 
-  // Firebase Analytics instance
   static final FirebaseAnalytics _firebaseAnalytics = FirebaseAnalytics.instance;
 
   // Screen names
@@ -27,21 +23,18 @@ class AnalyticsService {
   static const String screenExpenseAdded       = 'ExpenseAddedScreen';
 
   static String appVersion = '1.0.0';
-  static String trialId    = '';
-  // Device info
+  static String trialId = '';
   static String _device = '';
   static String _platform = '';
-  static String _sessionId = '';  // Participant ID - set once on app init
+  static String _sessionId = '';
   static bool _sessionInitialized = false;
   static DateTime? _sessionStartedAt;
   static String _currentScreen = '';
   static DateTime? _screenEnteredAt;
   static int _clickCountOnScreen = 0;
-  
-  // Async queue - each event waits for previous to complete
-  static Future<void> _lastEvent = Future.value();
 
-  // Detect device type and platform
+  static Future _lastEvent = Future.value();
+
   static void _detectDevice() {
     if (kIsWeb) {
       _platform = 'web';
@@ -75,8 +68,7 @@ class AnalyticsService {
     // ignore: avoid_print
     print('[Analytics] Device detected: $_device ($_platform)');
   }
-  
-  /// Set device type based on screen width (call from widget with context)
+
   static void setDeviceFromScreenWidth(double screenWidth) {
     if (kIsWeb) {
       if (screenWidth < 768) {
@@ -92,7 +84,6 @@ class AnalyticsService {
     }
   }
 
-  /// Initialize participant ID (call once on app start)
   static void initParticipant() {
     if (!_sessionInitialized) {
       _sessionId = 'P${DateTime.now().millisecondsSinceEpoch}';
@@ -102,60 +93,40 @@ class AnalyticsService {
     }
   }
 
-  /// Enable Firebase Analytics Debug Mode (for development/testing)
-  /// This allows you to see events in real-time in Firebase Console DebugView
-  static Future<void> enableDebugMode() async {
+  static Future enableDebugMode() async {
     try {
-      // Enable analytics collection
       await _firebaseAnalytics.setAnalyticsCollectionEnabled(true);
-      
-
       // ignore: avoid_print
       print('[Firebase Analytics] ✅ Debug mode enabled!');
       print('[Firebase Analytics] Session ID: $_sessionId');
-      print('[Firebase Analytics] To see events:');
-      print('[Firebase Analytics] 1. Go to: https://console.firebase.google.com/');
-      print('[Firebase Analytics] 2. Select your project');
-      print('[Firebase Analytics] 3. Go to: Analytics > DebugView');
-      print('[Firebase Analytics] 4. Events should appear in real-time');
     } catch (e) {
       // ignore: avoid_print
       print('[Firebase Analytics] ❌ Error enabling debug mode: $e');
     }
   }
 
-  /// Check Firebase Analytics status and connectivity (for debugging)
-  static Future<void> checkFirebaseStatus() async {
+  static Future checkFirebaseStatus() async {
     try {
       // ignore: avoid_print
-      print('\n========== Firebase Analytics Status ==========');
+      print('========== Firebase Analytics Status ==========');
       print('📱 Session ID: $_sessionId');
       print('🔄 Trial ID: $trialId');
       print('📊 Device: $_device ($_platform)');
-      print('✅ Analytics collection should be enabled');
-      print('\n📝 What to check:');
-      print('1. Open Firebase Console → Analytics → DebugView');
-      print('2. Look for device with session ID: $_sessionId');
-      print('3. Perform an action (tap button, navigate screen)');
-      print('4. Check if event appears in real-time');
-      print('\n🔗 Direct link: https://console.firebase.google.com/');
-      print('============================================\n');
+      print('============================================');
     } catch (e) {
       // ignore: avoid_print
       print('[Firebase Analytics] Error checking status: $e');
     }
   }
 
-  /// Start a new trial (call each time user starts logging an expense)
   static void startSession() {
-    initParticipant();  // Ensure participant ID exists
+    initParticipant();
     trialId = _generateTrialId();
     _sessionStartedAt = DateTime.now();
-    _currentScreen = screenHome;  // Start from HomeScreen
+    _currentScreen = screenHome;
     _screenEnteredAt = DateTime.now();
     _clickCountOnScreen = 0;
-     _detectDevice();
-
+    _detectDevice();
     _lastEvent = Future.value();
     // ignore: avoid_print
     print('[Analytics] startSession — sessionId=$_sessionId, trialId=$trialId');
@@ -164,10 +135,16 @@ class AnalyticsService {
   static String _generateTrialId() {
     final now = DateTime.now();
     final random = now.microsecond.toRadixString(16);
-    return '${random.substring(0, 8.clamp(0, random.length))}-${now.millisecond.toRadixString(16).padLeft(4, '0')}-${now.second.toRadixString(16).padLeft(2, '0')}${now.minute.toRadixString(16).padLeft(2, '0')}-${now.hour.toRadixString(16).padLeft(2, '0')}${now.day.toRadixString(16).padLeft(2, '0')}-${now.month.toRadixString(16).padLeft(2, '0')}${now.year.toRadixString(16)}';
+    return '${random.substring(0, 8.clamp(0, random.length))}'
+        '-${now.millisecond.toRadixString(16).padLeft(4, '0')}'
+        '-${now.second.toRadixString(16).padLeft(2, '0')}'
+        '${now.minute.toRadixString(16).padLeft(2, '0')}'
+        '-${now.hour.toRadixString(16).padLeft(2, '0')}'
+        '${now.day.toRadixString(16).padLeft(2, '0')}'
+        '-${now.month.toRadixString(16).padLeft(2, '0')}'
+        '${now.year.toRadixString(16)}';
   }
 
-  /// Log a screen view event
   static void logScreenView(String screenName) {
     final prevScreenTimeMs = _screenEnteredAt != null
         ? DateTime.now().difference(_screenEnteredAt!).inMilliseconds
@@ -188,160 +165,105 @@ class AnalyticsService {
     _clickCountOnScreen = 0;
   }
 
-  /// Log a navigation button click (forward/back)
   static void logNavigation({
     required String fromScreen,
     required String destination,
     required String navButtonId,
   }) {
     _clickCountOnScreen++;
-    _sendEvent(
-      event: 'nav_$navButtonId',
-      data: '',
-      fromScreen: fromScreen,
-      destination: destination,
-    );
+    _sendEvent(event: 'nav_$navButtonId', data: '', fromScreen: fromScreen, destination: destination);
   }
 
-  /// Log a tab selection event
   static void logTabSelected(String tabName, String fromScreen) {
     _clickCountOnScreen++;
-    _sendEvent(
-      event: 'tab_selected',
-      data: tabName,
-      fromScreen: fromScreen,
-    );
+    _sendEvent(event: 'tab_selected', data: tabName, fromScreen: fromScreen);
   }
 
-  /// Log when amount field is clicked/focused
   static void logAmountClicked(String fromScreen) {
     _clickCountOnScreen++;
-    _sendEvent(
-      event: 'amount_clicked',
-      fromScreen: fromScreen,
-    );
+    _sendEvent(event: 'amount_clicked', fromScreen: fromScreen);
   }
 
-  /// Log when amount is entered/changed
   static void logAmountEntered(String amount, String fromScreen) {
-    _sendEvent(
-      event: 'amount_entered',
-      data: amount,
-      fromScreen: fromScreen,
-    );
+    _sendEvent(event: 'amount_entered', data: amount, fromScreen: fromScreen);
   }
 
-  /// Log when category dropdown is clicked
   static void logCategoryClicked(String fromScreen) {
     _clickCountOnScreen++;
-    _sendEvent(
-      event: 'category_clicked',
-      fromScreen: fromScreen,
-    );
+    _sendEvent(event: 'category_clicked', fromScreen: fromScreen);
   }
 
-  /// Log when a category is selected
   static void logCategorySelected(String category, String fromScreen) {
-    _sendEvent(
-      event: 'category_selected',
-      data: category,
-      fromScreen: fromScreen,
-    );
+    _sendEvent(event: 'category_selected', data: category, fromScreen: fromScreen);
   }
 
-  /// Log when payment method is clicked
+  static void logDateSelected(DateTime date, String fromScreen) {
+    final formatted =
+        '${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+    _sendEvent(event: 'date_selected', data: formatted, fromScreen: fromScreen);
+  }
+
   static void logPaymentMethodClicked(String fromScreen) {
     _clickCountOnScreen++;
-    _sendEvent(
-      event: 'payment_method_clicked',
-      fromScreen: fromScreen,
-    );
+    _sendEvent(event: 'payment_method_clicked', fromScreen: fromScreen);
   }
 
-  /// Log when a payment method is selected
   static void logPaymentMethodSelected(String method, String fromScreen) {
-    _sendEvent(
-      event: 'payment_method_selected',
-      data: method,
-      fromScreen: fromScreen,
-    );
+    _sendEvent(event: 'payment_method_selected', data: method, fromScreen: fromScreen);
   }
 
-  /// Log when description field is clicked/focused
+  static void logPaymentMethodDeselected(String method, String fromScreen) {
+    _sendEvent(event: 'payment_method_deselected', data: method, fromScreen: fromScreen);
+  }
+
   static void logDescriptionClicked(String fromScreen) {
     _clickCountOnScreen++;
-    _sendEvent(
-      event: 'description_clicked',
-      fromScreen: fromScreen,
-    );
+    _sendEvent(event: 'description_clicked', fromScreen: fromScreen);
   }
 
-  /// Log when description is entered
   static void logDescriptionEntered(String description, String fromScreen) {
-    _sendEvent(
-      event: 'description_entered',
-      data: description,
-      fromScreen: fromScreen,
-    );
+    _sendEvent(event: 'description_entered', data: description, fromScreen: fromScreen);
   }
 
-  /// Log when payee field is clicked/focused
   static void logPayeeClicked(String fromScreen) {
     _clickCountOnScreen++;
-    _sendEvent(
-      event: 'payee_clicked',
-      fromScreen: fromScreen,
-    );
+    _sendEvent(event: 'payee_clicked', fromScreen: fromScreen);
   }
 
-  /// Log when payee is entered
   static void logPayeeEntered(String payee, String fromScreen) {
-    _sendEvent(
-      event: 'payee_entered',
-      data: payee,
-      fromScreen: fromScreen,
-    );
+    _sendEvent(event: 'payee_entered', data: payee, fromScreen: fromScreen);
   }
 
-  /// Log when payee suggestion is selected
   static void logPayeeSuggestionSelected(String payee, String fromScreen) {
     _clickCountOnScreen++;
-    _sendEvent(
-      event: 'payee_suggestion_selected',
-      data: payee,
-      fromScreen: fromScreen,
-    );
+    _sendEvent(event: 'payee_suggestion_selected', data: payee, fromScreen: fromScreen);
   }
 
-  /// Log expense type selection (new/unlogged)
   static void logExpenseTypeSelected(String expenseType, String fromScreen) {
     _clickCountOnScreen++;
-    _sendEvent(
-      event: 'expense_type_selected',
-      data: expenseType,
-      fromScreen: fromScreen,
-    );
+    _sendEvent(event: 'expense_type_selected', data: expenseType, fromScreen: fromScreen);
   }
 
-  /// Log final expense submission
+  /// Log final expense submission — accepts the user-selected date
   static void logConfirmClicked({
     required String fromScreen,
     required String amount,
     required String category,
     required String description,
     required String paymentMethod,
+    required DateTime date, // ← user-selected date passed in from screen
   }) {
     _clickCountOnScreen++;
 
-    final now = DateTime.now();
-    final date =
-        '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+    final formattedDate =
+        '${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+
     final totalSessionSeconds = _sessionStartedAt != null
         ? DateTime.now().difference(_sessionStartedAt!).inMilliseconds / 1000.0
         : 0.0;
 
     final payload =
-        'amount:$amount|category:$category|desc:$description|payment:$paymentMethod|date:$date|total_time:${totalSessionSeconds.toStringAsFixed(2)}';
+        'amount:$amount|category:$category|desc:$description|payment:$paymentMethod|date:$formattedDate|total_time:${totalSessionSeconds.toStringAsFixed(2)}';
 
     // ignore: avoid_print
     print('[Analytics] expense_logged payload: $payload');
@@ -355,7 +277,6 @@ class AnalyticsService {
     );
   }
 
-  /// Log task completion
   static void logCompleted({
     String category = '',
     String amount = '',
@@ -385,50 +306,30 @@ class AnalyticsService {
     print('[Analytics] logCompleted — expense_logged (total_session_seconds=${totalSessionSeconds?.toStringAsFixed(2) ?? ''})');
   }
 
-  /// Log task abandoned
   static void logAbandoned() {
-    _sendEvent(
-      event: 'task_abandoned',
-      fromScreen: _currentScreen,
-    );
+    _sendEvent(event: 'task_abandoned', fromScreen: _currentScreen);
     // ignore: avoid_print
     print('[Analytics] logAbandoned — task abandoned');
   }
 
-  /// Log generic button click
   static void logButtonClick(String buttonName, String fromScreen) {
     _clickCountOnScreen++;
-    _sendEvent(
-      event: 'button_click',
-      data: buttonName,
-      fromScreen: fromScreen,
-    );
+    _sendEvent(event: 'button_click', data: buttonName, fromScreen: fromScreen);
   }
 
-  /// Log back to home click
   static void logBackToHome(String fromScreen) {
     _clickCountOnScreen++;
-    _sendEvent(
-      event: 'back_to_home',
-      fromScreen: fromScreen,
-      destination: screenHome,
-    );
+    _sendEvent(event: 'back_to_home', fromScreen: fromScreen, destination: screenHome);
   }
 
-  /// Legacy transition logging (for backward compatibility)
   static void logTransition({
     required String fromScreen,
     required String destination,
     required String navButtonId,
   }) {
-    logNavigation(
-      fromScreen: fromScreen,
-      destination: destination,
-      navButtonId: navButtonId,
-    );
+    logNavigation(fromScreen: fromScreen, destination: destination, navButtonId: navButtonId);
   }
 
-   /// Send event to Google Apps Script via GET request AND Firebase Analytics
   static void _sendEvent({
     required String event,
     String data = '',
@@ -454,7 +355,6 @@ class AnalyticsService {
       'device': _device,
     };
 
-    // Build query string for GET request
     final queryString = params.entries
         .map((e) => '${Uri.encodeComponent(e.key)}=${Uri.encodeComponent(e.value)}')
         .join('&');
@@ -464,21 +364,15 @@ class AnalyticsService {
     // ignore: avoid_print
     print('[Analytics] Queuing event: $event');
 
-    // Chain this event after previous one completes
     _lastEvent = _lastEvent.then((_) {
       // ignore: avoid_print
       print('[Analytics] Sending event: $event');
 
-      // Send to Google Sheets
       js.context.callMethod('fetch', [
         url,
-        js.JsObject.jsify({
-          'method': 'GET',
-          'mode': 'no-cors',
-        }),
+        js.JsObject.jsify({'method': 'GET', 'mode': 'no-cors'}),
       ]);
 
-      // Send to Firebase Analytics
       _logToFirebase(
         event: event,
         data: data,
@@ -494,8 +388,7 @@ class AnalyticsService {
     });
   }
 
-  /// Log event to Firebase Analytics
-  static Future<void> _logToFirebase({
+  static Future _logToFirebase({
     required String event,
     String data = '',
     String fromScreen = '',
@@ -511,31 +404,14 @@ class AnalyticsService {
         'device': _device,
       };
 
-      // Add optional parameters if they have values
-      if (data.isNotEmpty) {
-        firebaseParams['data'] = data;
-      }
-      if (fromScreen.isNotEmpty) {
-        firebaseParams['from_screen'] = fromScreen;
-      }
-      if (destination.isNotEmpty) {
-        firebaseParams['destination'] = destination;
-      }
-      if (timeOnScreenSeconds != null) {
-        firebaseParams['time_on_screen_seconds'] = timeOnScreenSeconds;
-      }
-      if (totalSessionSeconds != null) {
-        firebaseParams['total_session_seconds'] = totalSessionSeconds;
-      }
-      if (clickCount != null) {
-        firebaseParams['click_count'] = clickCount;
-      }
+      if (data.isNotEmpty) firebaseParams['data'] = data;
+      if (fromScreen.isNotEmpty) firebaseParams['from_screen'] = fromScreen;
+      if (destination.isNotEmpty) firebaseParams['destination'] = destination;
+      if (timeOnScreenSeconds != null) firebaseParams['time_on_screen_seconds'] = timeOnScreenSeconds;
+      if (totalSessionSeconds != null) firebaseParams['total_session_seconds'] = totalSessionSeconds;
+      if (clickCount != null) firebaseParams['click_count'] = clickCount;
 
-      // Log to Firebase Analytics
-      await _firebaseAnalytics.logEvent(
-        name: event,
-        parameters: firebaseParams,
-      );
+      await _firebaseAnalytics.logEvent(name: event, parameters: firebaseParams);
 
       // ignore: avoid_print
       print('[Firebase Analytics] ✅ Event logged: $event | Params: $firebaseParams');
@@ -546,6 +422,5 @@ class AnalyticsService {
     }
   }
 
-  /// Wait until all queued analytics events are sent.
-  static Future<void> flushEvents() => _lastEvent;
+  static Future flushEvents() => _lastEvent;
 }

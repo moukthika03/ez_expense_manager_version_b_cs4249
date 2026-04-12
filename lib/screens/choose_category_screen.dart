@@ -16,6 +16,7 @@ class ChooseCategoryScreen extends StatefulWidget {
 
 class _ChooseCategoryScreenState extends State<ChooseCategoryScreen> {
   String? _selectedCategory;
+  late DateTime _selectedDate;
 
   final List<String> _taskCategories = [
     'Transport', 'Food', 'Groceries', 'Appliances', 'Healthcare',
@@ -25,6 +26,7 @@ class _ChooseCategoryScreenState extends State<ChooseCategoryScreen> {
   @override
   void initState() {
     super.initState();
+    _selectedDate = DateTime.now();
     AnalyticsService.logScreenView(AnalyticsService.screenChooseCategory);
   }
 
@@ -38,6 +40,27 @@ class _ChooseCategoryScreenState extends State<ChooseCategoryScreen> {
     return _taskCategories.map((category) {
       return {'title': category, 'subtitle': monthTotal(category)};
     }).toList();
+  }
+
+  String get _formattedDate {
+    return '${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}';
+  }
+
+  Future<void> _openDatePicker() async {
+    AnalyticsService.logCategoryClicked(AnalyticsService.screenChooseCategory);
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate,
+      firstDate: DateTime(2000),
+      lastDate: DateTime.now(),
+    );
+    if (picked != null && picked != _selectedDate) {
+      AnalyticsService.logCategorySelected(
+        picked.toIso8601String(),
+        AnalyticsService.screenChooseCategory,
+      );
+      setState(() => _selectedDate = picked);
+    }
   }
 
   @override
@@ -97,6 +120,24 @@ class _ChooseCategoryScreenState extends State<ChooseCategoryScreen> {
                       return _taskCategories.map<Widget>((String item) => Text(item)).toList();
                     },
                   ),
+                  const SizedBox(height: 24),
+                  GestureDetector(
+                    onTap: _openDatePicker,
+                    child: AbsorbPointer(
+                      child: TextFormField(
+                        readOnly: true,
+                        controller: TextEditingController(text: _formattedDate),
+                        decoration: InputDecoration(
+                          labelText: 'Date',
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                          filled: true,
+                          fillColor: Colors.grey[50],
+                          suffixIcon: const Icon(Icons.calendar_today_outlined, size: 18),
+                        ),
+                        style: const TextStyle(fontSize: 16, color: Colors.black87),
+                      ),
+                    ),
+                  ),
                   const SizedBox(height: 32),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -117,13 +158,13 @@ class _ChooseCategoryScreenState extends State<ChooseCategoryScreen> {
                             destination: AnalyticsService.screenAmountPaid,
                             navButtonId: 'forward',
                           );
-                          // Persist progress — carry forward expenseType from previous step.
                           final prev = FlowStateService.savedData;
                           FlowStateService.save(
                             step: FlowStateService.stepAmountPaid,
                             data: {
                               ...prev,
                               'category': _selectedCategory!,
+                              'date': _selectedDate.toIso8601String(),
                             },
                           );
                           Navigator.push(
